@@ -147,13 +147,14 @@ body {
     position: relative;
     display: inline-block;
     transition: transform 0.3s ease;
+    color:#D4B2A7;
 }
 .card a.text-decoration-none:hover {
     transform: translateX(5px);
     color: #D4B2A7;
 }
 .carousel .card-body {
-    background-color: #FFF9F6; 
+    background-color: #FFFAF6;
     border-radius: 0 0 10px 10px; 
 }
 .team-title {
@@ -544,6 +545,426 @@ body {
   .fitness-image:hover {
     opacity: 0.9;
   }
+  .hero-image {
+    display: block;
+    margin: 0 auto;
+    border-radius: 10px;
+    opacity: 0.3;
+    max-width: 100%;
+    height: auto;
+  }
+
+.hero-section {
+    background-color: #FFF6EE;
+    padding: 3rem 0;
+  }
+  .hero-content-detail {
+    padding: 0;
+    margin: 0;
+  }
+  
+  .hero-title-detail {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: #7D6666;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+    letter-spacing: -0.2px;
+  }
+  
+  .hero-subtitle {
+    font-size: 1rem;
+    color: #D4B2A7;
+    margin-bottom: 2rem;
+    opacity: 0.8;
+    line-height: 1.5;
+    max-width: 33rem;
+  }
+  
+  .class-info-section {
+    margin-bottom: 2rem;
+    max-width: 35rem;
+  }
+  
+  .class-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .class-date {
+    font-size: 1rem;
+    color: #7D6666;
+    font-weight: 600;
+  }
+  
+  .class-capacity {
+    font-size: 1rem;
+    color: #7D6666;
+    opacity: 0.8;
+    font-weight: 600;
+    width: auto;
+  }
+  
+  .class-details {
+    font-size: 0.9rem;
+    color: #D4B2A7;
+    margin-bottom: 1.5rem;
+  }
+  
+  .btn-reserve {
+    background-color: #D4B2A7;
+    color: white;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+    transition: all 0.3s ease;
+    width: fit-content; 
+    min-width: 35rem;
+  }
+  
+  .btn-reserve:hover {
+    background-color: #b59289;
+    color: white;
+  }
+  
+  .no-refund {
+    font-size: 0.8rem;
+    color: #D4B2A7;
+    opacity: 0.8;
+    margin-bottom: 2rem;
+  }
+  
+  .hero-image-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100%;
+  }
+  
+  .hero-image-detail {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    opacity: 0.9;
+    transition: opacity 0.3s ease;
+  }
+  
+  .hero-image-detail:hover {
+    opacity: 1;
+  }
+  
+  .calendar {
+    margin-top: 1.5rem;
+    background-color: #fff;
+    padding: 1.25rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(125, 102, 102, 0.08);
+    width: 26rem;
+    height: 20rem;
+    max-width: 100%;
+  }
+  
+  .calendar-header {
+    font-weight: 500;
+    margin-bottom: 1rem;
+    color: #7D6666;
+    font-size: 0.95rem;
+  }
+  
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.4rem;
+    justify-content: stretch;
+    width: 100%;
+  }
+  
+  .calendar-day {
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #7D6666;
+    background-color: #FFFAF6;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .calendar-day.header {
+    font-weight: 500;
+    color: #D4B2A7;
+    cursor: default;
+  }
+  
+  .calendar-day.selected {
+    background-color: #D4B2A7;
+    color: white;
+  }
+  
+  .calendar-day:not(.header):not(.selected):hover {
+    background-color: rgba(212, 178, 167, 0.1);
+  }
+  
+  .time-slots {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 200px;
+  }
+  
+  .time-slot-item {
+    background-color: #FFFAF6;
+    border: 2px solid #D4B2A7;
+    color: #D4B2A7;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  
+  .time-slot-item.selected {
+    background-color: #D4B2A7;
+    color: white;
+  }
+  
+  .time-slot-item:not(.selected):hover {
+    background-color: rgba(212, 178, 167, 0.1);
+  }
+.calendar-time-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+    margin-top: 1.5rem;
+}
+
+.calendar-wrapper {
+    flex: 0 0 auto;
+    position:relative;
+}
+
+.time-slots-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: absolute center;
+}
+
+.time-slots-title {
+    font-size: 0.95rem;
+    color: #D4B2A7;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.time-slots-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: fit-content; 
+    min-width: 120px;
+}
+.class-card {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+    width: 300px; 
+    height: 400px; 
+    background: white;
+    border-radius: 12px;
+    overflow: hidden; 
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(125, 102, 102, 0.1);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+.class-card img {
+    width: 100%;
+    height: 250px; 
+    object-fit: cover; 
+    border-radius: 12px 12px 0 0; 
+}
+.class-card-content {
+    padding: 1.5rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.carousel-container {
+    position: relative;
+    margin: 3rem 0;
+    padding: 0 80px;
+    overflow: hidden;
+}
+
+.carousel-track {
+    display: flex;
+    gap: 2rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem 0;
+    scrollbar-width: none; 
+}
+
+.carousel-track::-webkit-scrollbar {
+    display: none; 
+}
+
+.carousel-card {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+    width: 300px;
+    color:#FFFAF6;
+}
+.carousel-card .card {
+    background-color: #FFFAF6;
+    border-radius: 10px;
+}
+
+.carousel-card .card-body {
+    background-color: #FFFAF6;
+    border-radius: 0 0 10px 10px;
+}
+
+.card {
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.carousel-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #D4B2A7;
+    border: none;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(125, 102, 102, 0.15);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.carousel-nav-btn:hover {
+    background: #b59289;
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 6px 18px rgba(125, 102, 102, 0.25);
+}
+
+.carousel-prev {
+    left: 15px;
+}
+
+.carousel-next {
+    right: 15px;
+}
+
+@media (max-width: 768px) {
+    .carousel-container {
+        padding: 0 60px;
+    }
+    
+    .carousel-nav-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+    
+    .carousel-prev {
+        left: 10px;
+    }
+    
+    .carousel-next {
+        right: 10px;
+    }
+    
+    .carousel-card {
+        width: 280px;
+    }
+}
+@media (max-width: 768px) {
+    .calendar-time-container {
+        flex-direction: column;
+    }
+    
+    .time-slots-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .time-slots-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+  
+  @media (max-width: 768px) {
+    .hero-title-detail {
+      font-size: 2rem;
+    }
+    
+    .hero-content-detail {
+      margin-bottom: 2rem;
+    }
+    
+    .class-info-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    
+    .calendar-grid {
+      grid-template-columns: repeat(7, 28px);
+      gap: 0.3rem;
+    }
+    
+    .calendar-day {
+      padding: 6px 2px;
+      font-size: 0.8rem;
+    }
+    
+    .time-slots {
+      max-width: 100%;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    .hero-title-detail {
+      font-size: 1.75rem;
+    }
+    
+    .calendar {
+      padding: 1rem;
+      width: 100%;
+    }
+    
+    .calendar-grid {
+      justify-content: center;
+    }
+  }  
   /* Mobile Responsiveness */
   @media (max-width: 768px) {
     .schedule-title {
