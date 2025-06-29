@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pilates Studio - Paquetes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f6f3;
+            color: #7D6666;
+        }
+
+        .horario-section {
+            padding: 40px 0;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 60px;
+            color: #7D6666;
+            font-weight: 300;
+            font-size: 3rem;
+        }
+
+        .days-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            margin-bottom: 40px;
+            background: rgba(212, 178, 167, 0.2);
+            border-radius: 15px;
+            padding: 8px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .day-tab {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            color: #7D6666;
+            font-weight: 400;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .day-tab.active {
+            background: #D4B2A7;
+            color: white;
+            font-weight: 500;
+        }
+
+        .day-tab:hover {
+            background: rgba(212, 178, 167, 0.3);
+        }
+
+        .day-tab.active:hover {
+            background: #c19a8a;
+        }
+
+        .schedule-grid {
+            display: grid;
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .time-slot {
+            background: rgba(212, 178, 167, 0.15);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(212, 178, 167, 0.2);
+        }
+
+        .time-slot:hover {
+            background: rgba(212, 178, 167, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(212, 178, 167, 0.2);
+        }
+
+        .class-type {
+            font-size: 0.9rem;
+            color: #7d666698;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .class-name {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #7D6666;
+            margin-bottom: 15px;
+        }
+
+        .class-time {
+            font-size: 0.95rem;
+            color: #7D6666;
+            font-weight: 400;
+        }
+
+        .capacity-info {
+            font-size: 0.8rem;
+            color: #7d666698;
+            margin-top: 10px;
+        }
+
+        .day-content {
+            display: none;
+        }
+
+        .day-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .horario-section {
+                min-height: calc(100vh - 40px);
+            }
+
+            .days-tabs {
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 12px;
+            }
+
+            .day-tab {
+                min-width: calc(50% - 4px);
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+
+            .schedule-grid {
+                padding: 0 15px;
+            }
+
+            .section-title {
+                font-size: 2.5rem;
+                margin-bottom: 40px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .day-tab {
+                min-width: calc(100% - 8px);
+                margin-bottom: 4px;
+            }
+        }
+
+        .schedule-grid {
+            display: grid;
+            gap: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            grid-template-columns: 1fr; /* Por defecto una columna */
+        }
+
+        /* Para tablets */
+        @media (min-width: 768px) {
+            .schedule-grid {
+                grid-template-columns: repeat(2, 1fr); /* 2 columnas en tablet */
+            }
+        }
+
+        /* Para escritorio */
+        @media (min-width: 1024px) {
+            .schedule-grid {
+                grid-template-columns: repeat(4, 1fr); /* 4 columnas en escritorio */
+                max-width: 1200px; /* Permite más ancho */
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg px-3">
+    <div class="container-fluid">
+        <!-- Logo (left-aligned) -->
+        <a class="navbar-brand fade-in-up" href="landing-page.html">
+            <img src="images/pancakes.png" alt="Logo">
+        </a>
+        
+        <!-- Mobile Toggler -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <!-- Navbar Content -->
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <!-- Navigation Items (centered) -->
+            <ul class="navbar-nav mx-auto">  
+                <li class="nav-item px-2"><a class="nav-link" href="classes.html">Clases</a></li>
+                <li class="nav-item px-2"><a class="nav-link" href="class-detail.html">Reservar</a></li>
+                <li class="nav-item px-2"><a class="nav-link" href="calendar.html">Horario</a></li>
+                <li class="nav-item px-2"><a class="nav-link" href="packages.html">Paquetes</a></li>
+                <li class="nav-item px-2"><a class="nav-link" href="landing-page.html#team">Nuestro Equipo</a></li>
+                <li class="nav-item px-2"><a class="nav-link" href="about.html">Contacto</a></li>
+            </ul>
+            
+            <!-- Login Button (right-aligned) -->
+            <div class="d-flex" style="margin-right: 7rem;">
+                <button class="btn btn-secondary px-5 py-3 rounded-4">Log In</button>
+            </div>
+        </div>
+    </div>
+    </nav>
+
+    <section class="horario-section">
+        <div class="container fade-in-up">
+            <h1 class="section-title">Horario</h1>
+            
+            <!-- Days Navigation -->
+            <div class="days-tabs">
+                <button class="day-tab active" onclick="showDay('lunes')">Lunes</button>
+                <button class="day-tab" onclick="showDay('martes')">Martes</button>
+                <button class="day-tab" onclick="showDay('miercoles')">Miércoles</button>
+                <button class="day-tab" onclick="showDay('jueves')">Jueves</button>
+                <button class="day-tab" onclick="showDay('viernes')">Viernes</button>
+                <button class="day-tab" onclick="showDay('sabado')">Sábado</button>
+            </div>
+
+            <!-- Lunes -->
+            <div id="lunes" class="day-content active">
+                <div class="schedule-grid">
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">8/10</div>
+                        <div class="class-time">6:00 AM - 7:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">1/10</div>
+                        <div class="class-time">7:00 AM - 8:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">8/10</div>
+                        <div class="class-time">8:00 AM - 9:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">2/10</div>
+                        <div class="class-time">9:00 AM - 10:00 AM</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Martes -->
+            <div id="martes" class="day-content">
+                <div class="schedule-grid">
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">2/10</div>
+                        <div class="class-time">6:00 AM - 7:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">10/10</div>
+                        <div class="class-time">7:00 AM - 8:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">6/10</div>
+                        <div class="class-time">8:00 AM - 9:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">8/10</div>
+                        <div class="class-time">9:00 AM - 10:00 AM</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Miércoles -->
+            <div id="miercoles" class="day-content">
+                <div class="schedule-grid">
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">8/10</div>
+                        <div class="class-time">6:00 AM - 7:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">8/10</div>
+                        <div class="class-time">7:00 AM - 8:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">8/10</div>
+                        <div class="class-time">8:00 AM - 9:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">2/10</div>
+                        <div class="class-time">9:00 AM - 10:00 AM</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jueves -->
+            <div id="jueves" class="day-content">
+                <div class="schedule-grid">
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">10/10</div>
+                        <div class="class-time">6:00 AM - 7:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">6/10</div>
+                        <div class="class-time">7:00 AM - 8:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">5/10</div>
+                        <div class="class-time">8:00 AM - 9:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">3/10</div>
+                        <div class="class-time">9:00 AM - 10:00 AM</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Viernes -->
+            <div id="viernes" class="day-content">
+                <div class="schedule-grid">
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">6/10</div>
+                        <div class="class-time">6:00 AM - 7:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">3/10</div>
+                        <div class="class-time">7:00 AM - 8:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">1/10</div>
+                        <div class="class-time">8:00 AM - 9:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">9/10</div>
+                        <div class="class-time">9:00 AM - 10:00 AM</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sábado -->
+            <div id="sabado" class="day-content">
+                <div class="schedule-grid">
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">10/10</div>
+                        <div class="class-time">6:30 AM - 7:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">6/10</div>
+                        <div class="class-time">7:00 AM - 8:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">8/10</div>
+                        <div class="class-time">8:00 AM - 9:00 AM</div>
+                    </div>
+                    <div class="time-slot">
+                        <div class="class-type">Pilates Reformer</div>
+                        <div class="class-name">8/10</div>
+                        <div class="class-time">9:00 AM - 10:00 AM</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+<footer class="footer-container">
+    <div class="footer-content">
+        <div class="footer-row">
+            <div class="footer-left">
+                <div class="brand-section">
+                    <h1>Nombre Pilates</h1>
+                    <p class="social-text">Síguenos en Redes Sociales</p>
+                    <div class="social-icons">
+                        <a href="#" class="social-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="social-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="social-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="social-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-right">
+                <div class="auth-buttons">
+                    <a href="#" class="btn-auth btn-login">Log In</a>
+                    <a href="#" class="btn-auth btn-signup">Sign Up</a>
+                </div>
+                <div class="footer-column">
+                    <ul>
+                        <li><a href="#">Términos y Condiciones</a></li>
+                        <li><a href="#">Política de Reembolso</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-column">
+                    <ul>
+                        <li><a href="#">Aviso de Privacidad</a></li>
+                        <li><a href="#">Contacto</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <div class="footer-bottom-left">
+                <p style="color: #D4B2A7">2025, Nombre Pilates</p>
+                <p style="color: #d5a595">Sitio Web creado por Arantxa Angulo y Maximiliano Stringlo</p>
+            </div>
+        </div>
+    </div>
+</footer>
+    <script>
+        function showDay(day) {
+            // Hide all day contents
+            const dayContents = document.querySelectorAll('.day-content');
+            dayContents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all tabs
+            const dayTabs = document.querySelectorAll('.day-tab');
+            dayTabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected day content
+            document.getElementById(day).classList.add('active');
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+    </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
