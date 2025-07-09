@@ -22,7 +22,7 @@ mongoose.connect(process.env.MONGODB_URI, { // Basic MongoDB connection
   .catch(err => console.error('MongoDB connection error:', err));
   module.exports = mongoose;
 
-  app.use(express.static(path.join(__dirname, 'interfaces')));
+  app.use(express.static(path.join(__dirname, 'interfaces', 'landing-page.html')));
   
   // ROUTES
   const userRoutes = require('./routes/user.routes');
@@ -33,8 +33,8 @@ mongoose.connect(process.env.MONGODB_URI, { // Basic MongoDB connection
     res.status(500).json({ error: 'Internal Server Error' });
   });
   
-  // START SERVER ON PORT 3000
-  const PORT = process.env.PORT || 3000;
+  // START SERVER ON PORT 5000
+  const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
