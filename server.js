@@ -14,9 +14,13 @@ app.use(cors({ // Enables CORS for security purposes
 }));
 app.use(express.json()); // to parse JSON from frontend
 
-// Connnect to Database
-const connectDB = require('./config/db');
-connectDB();
+mongoose.connect(process.env.MONGODB_URI, { // Basic MongoDB connection 
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
+  module.exports = mongoose;
 
   app.use(express.static(path.join(__dirname, 'interfaces', 'landing-page.html')));
   
