@@ -12,14 +12,8 @@ const verifyToken = (req, res, next) => {
     });
   }
 
-  // 3. Extract token (Bearer <token>)
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ 
-      success: false,
-      message: 'Bearer token is required'
-    });
-  }
+  // 3. Use JWT_SECRET with fallback
+  const jwtSecret = process.env.JWT_SECRET || '123xyz';
 
   // 4. Verify token
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
@@ -41,8 +35,8 @@ const verifyToken = (req, res, next) => {
 
     // 5. Attach decoded user to request
     req.user = {
-      id: decoded.id, // Standardized property names
-      role: decoded.role // Consistent naming
+      id: decoded.id,
+      role: decoded.role 
     };
     
     next();

@@ -124,11 +124,21 @@ exports.loginUser = async (req, res) => {
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
             jwtSecret,
-            { expiresIn: '1h' }
+            { expiresIn: '15m' }
+        );
+
+        const refreshToken = jwt.sign(
+            { id: user._id },
+            jwtSecret,
+            { expiresIn: '7d' } // refresh token expires in 7 days
         );
         
         console.log('Login successful for:', email);
-        res.json({ token });
+        res.json({ 
+            token,
+            refreshToken,
+            expiresIn: 15 * 60 // token expiration in seconds 
+        });
         
     } catch (error) {
         console.error('Login error details:', error);
@@ -138,4 +148,38 @@ exports.loginUser = async (req, res) => {
             stack: process.env.NODE_ENV === 'production' ? '🥞' : error.stack 
         });
     }
+};
+
+// REFRESH TOKEN
+exports.refreshToken = async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authorization header is required' });
+    }
+
+    const refreshToken = authHeader.split(' ')[1];
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token is required' });
+    }
+
+    const jwtSecret = process.env.JWT_SECRET || '123xyz';
+    
+    jwt.verify(refreshToken, jwtSecret, (err, decoded) => {
+      if (err) {
+        return res.status(403).json({ error: 'Invalid refresh token' });
+      }
+
+      // Generate new access token
+      const newAccessToken = jwt.sign(
+        { id: decoded.id, email: decoded.email, role: decoded.role },
+        jwtSecret,
+        { expiresIn: '15m' } // shorter expiry for access token
+      );
+
+      res.json({ token: newAccessToken });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
