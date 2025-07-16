@@ -1,18 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
+const { verifyToken } = require('../middleware/auth.middleware');
+const rateLimit = require('express-rate-limit');
+
+// RATE LIMITING
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 login attempts per windowMs
+  message: 'Too many login attempts, please try again later'
+});
+// REFRESH 
+router.post('/refresh-token', userController.refreshToken);
 
 // REGISTER ROUTE
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password, dob } = req.body;
-    const user = new User({ name, email, password, dob });
-    await user.save();
-    res.status(201).json({ message: 'User created', user });
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: err.message });
-  }
-});
+router.post('/register', userController.createUser);
+
+// LOGIN ROUTE (USING BCRYPT PASSWORD)
+router.post('/login', userController.loginUser);
+
+// PROTECTED ROUTES
+router.put('/:id', verifyToken, userController.updateUser);
+router.delete('/:id', verifyToken, userController.deleteUser);
 
 module.exports = router;
