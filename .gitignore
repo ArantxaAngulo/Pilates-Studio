@@ -39,3 +39,6 @@ build/
 # Frontend output (optional, depending on your stack)
 interfaces/dist/
 interfaces/node_modules/
+
+# certs
+certs/
