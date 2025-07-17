@@ -1,9 +1,27 @@
-// Scroll
+// ======================
+// DOM UTILITIES
+// ======================
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize both carousels
+    // Initialize team carousel (only for landing page)
     initCarousel('teamCarousel', 'prevBtn', 'nextBtn');
-    //initCarousel('practicaCarousel', 'prevBtn', 'nextBtn');
+    
+    // Initialize practica carousel (only for class-detail page)
+    initPracticaCarousel();
+    
+    // Initialize calendar (for calendar page)
+    initCalendar();
+    
+    // Initialize fade-in animations
+    initFadeAnimations();
+    
+    // Initialize form handlers
+    initAuthForms();
 });
+
+// ======================
+// TEAM CAROUSEL (Landing Page)
+// ======================
 
 function initCarousel(carouselId, prevBtnId, nextBtnId) {
     const carousel = document.getElementById(carouselId);
@@ -76,11 +94,14 @@ function initCarousel(carouselId, prevBtnId, nextBtnId) {
     setTimeout(updateCarousel, 100);
 }
 
-// CHANGE
-document.addEventListener('DOMContentLoaded', function() {
+// ======================
+// PRACTICA CAROUSEL (Class Detail Page)
+// ======================
+
+function initPracticaCarousel() {
     const carousel = document.getElementById('practicaCarousel');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
+    const prevBtn = document.getElementById('practicaPrevBtn');
+    const nextBtn = document.getElementById('practicaNextBtn');
     
     if (!carousel || !prevBtn || !nextBtn) return;
     
@@ -123,11 +144,54 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize button states
     updateButtons();
-    
-});
+}
 
-// FADE IN
-document.addEventListener('DOMContentLoaded', () => {
+// ======================
+// CALENDAR FUNCTIONS
+// ======================
+
+function initCalendar() {
+    const dayTabs = document.querySelectorAll('.day-tab');
+    
+    dayTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const day = this.getAttribute('data-day');
+            showDay(day, this);
+        });
+    });
+}
+
+function showDay(day, clickedTab) {
+    // Hide all day contents
+    const dayContents = document.querySelectorAll('.day-content');
+    dayContents.forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Remove active class from all tabs
+    const dayTabs = document.querySelectorAll('.day-tab');
+    dayTabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // Show selected day content
+    const selectedDay = document.getElementById(day);
+    if (selectedDay) {
+        selectedDay.classList.add('active');
+    }
+
+    // Add active class to clicked tab
+    if (clickedTab) {
+        clickedTab.classList.add('active');
+    }
+}
+
+// ======================
+// FADE IN ANIMATIONS
+// ======================
+
+function initFadeAnimations() {
+    // Handle general fade-in-up elements
     const faders = document.querySelectorAll('.fade-in-up');
   
     const appearOptions = {
@@ -146,4 +210,258 @@ document.addEventListener('DOMContentLoaded', () => {
     faders.forEach(fader => {
       appearOnScroll.observe(fader);
     });
-});
+
+    // Handle login page sequential animations
+    if (document.getElementById('loginForm')) {
+        initLoginAnimations();
+    }
+
+    // Handle sign-up page animations
+    if (document.getElementById('registroForm')) {
+        initSignUpAnimations();
+    }
+}
+
+function initLoginAnimations() {
+    // Sequential animation for login page elements
+    const loginElements = [
+        '.title', 
+        '.subtitle', 
+        '.form-label', 
+        '.form-control', 
+        '.form-row', 
+        '.btn-login', 
+        '.bottom-link'
+    ];
+
+    loginElements.forEach((selector, index) => {
+        setTimeout(() => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => el.classList.add('visible'));
+        }, index * 200);
+    });
+
+    // Add input focus effects for login page
+    const formControls = document.querySelectorAll('.form-control');
+    formControls.forEach(input => {
+        input.addEventListener('focus', function() {
+            const label = this.parentElement.querySelector('.form-label');
+            if (label) {
+                label.style.color = '#d4b2a7';
+            }
+        });
+        
+        input.addEventListener('blur', function() {
+            const label = this.parentElement.querySelector('.form-label');
+            if (label) {
+                label.style.color = '#000';
+            }
+        });
+    });
+}
+
+function initSignUpAnimations() {
+    // Handle sign-up page animations
+    const signUpElements = document.querySelectorAll('.fade-in-up, .fade-in-left, .fade-in-right, .title-animation');
+    
+    const appearOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const appearOnScroll = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, appearOptions);
+
+    signUpElements.forEach(el => {
+        appearOnScroll.observe(el);
+    });
+}
+
+// ======================
+// AUTHENTICATION FUNCTIONS
+// ======================
+
+function initAuthForms() {
+  // LOGIN FORM HANDLER
+  if (document.getElementById('loginForm')) {
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showAlert('Por favor completa todos los campos', 'error');
+        return;
+      }
+      
+      try {
+        const response = await fetch('http://localhost:5000/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('refreshToken', data.refreshToken);
+          showAlert('Inicio de sesión exitoso', 'success');
+          setTimeout(() => window.location.href = 'dashboard.html', 1500);
+        } else {
+          showAlert(data.error || 'Error de autenticación', 'error');
+        }
+      } catch (err) {
+        showAlert('Error de conexión con el servidor', 'error');
+        console.error('Login error:', err);
+      }
+    });
+  }
+
+  // REGISTRATION FORM HANDLER
+  if (document.getElementById('registroForm')) {
+    const form = document.getElementById('registroForm');
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Get form data
+      const formData = {
+        name: `${form.querySelector('#nombre').value} ${form.querySelector('#apellido-paterno').value}`,
+        email: form.querySelector('#email').value,
+        password: form.querySelector('#password').value,
+        dob: form.querySelector('#fecha-nac').value
+      };
+
+      // Client-side validation
+      if (!validateRegistration(form, formData)) return;
+
+      try {
+        const response = await fetch('http://localhost:5000/api/users/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          localStorage.setItem('token', data.token);
+          showAlert('¡Registro exitoso! Bienvenido a Shanti Pilates.', 'success');
+          setTimeout(() => window.location.href = 'dashboard.html', 1500);
+        } else {
+          showAlert(data.error || 'Error en el registro', 'error');
+        }
+      } catch (err) {
+        showAlert('Error de conexión con el servidor', 'error');
+        console.error('Registration error:', err);
+      }
+    });
+
+    // Real-time password validation
+    const confirmPassword = document.getElementById('confirmar-password');
+    if (confirmPassword) {
+      confirmPassword.addEventListener('input', function() {
+        const password = document.getElementById('password').value;
+        const isMatching = password === this.value;
+        
+        this.style.borderColor = isMatching ? '#e6e6e6' : '#ef4444';
+        this.style.backgroundColor = isMatching ? '#f8f9fa' : '#fef2f2';
+      });
+    }
+
+    // Date picker enhancement
+    const dobInput = document.getElementById('fecha-nac');
+    if (dobInput) {
+      dobInput.addEventListener('focus', function() {
+        this.showPicker();
+      });
+    }
+  }
+}
+
+function validateRegistration(form, formData) {
+  // Check required fields
+  if (!formData.name.trim() || !formData.email || !formData.password || !formData.dob) {
+    showAlert('Por favor, completa todos los campos obligatorios.', 'error');
+    return false;
+  }
+
+  // Check password match
+  const confirmPassword = form.querySelector('#confirmar-password').value;
+  if (formData.password !== confirmPassword) {
+    showAlert('Las contraseñas no coinciden.', 'error');
+    return false;
+  }
+
+  // Check password length
+  if (formData.password.length < 8) {
+    showAlert('La contraseña debe tener al menos 8 caracteres.', 'error');
+    return false;
+  }
+
+  // Check age (minimum 16 years)
+  const dob = new Date(formData.dob);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  
+  if (age < 16) {
+    showAlert('Debes tener al menos 16 años para registrarte.', 'error');
+    return false;
+  }
+
+  return true;
+}
+
+// ======================
+// UI UTILITIES
+// ======================
+
+function showAlert(message, type = 'success') {
+  // Remove any existing alerts first
+  const existingAlert = document.querySelector('.custom-alert');
+  if (existingAlert) existingAlert.remove();
+
+  // Create alert element
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `custom-alert alert-${type}`;
+  alertDiv.textContent = message;
+  
+  // Style the alert
+  alertDiv.style.position = 'fixed';
+  alertDiv.style.top = '20px';
+  alertDiv.style.right = '20px';
+  alertDiv.style.padding = '15px 25px';
+  alertDiv.style.borderRadius = '8px';
+  alertDiv.style.color = 'white';
+  alertDiv.style.zIndex = '1000';
+  alertDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+  
+  // Set color based on type
+  if (type === 'error') {
+    alertDiv.style.backgroundColor = '#ef4444';
+  } else {
+    alertDiv.style.backgroundColor = '#10b981';
+  }
+  
+  document.body.appendChild(alertDiv);
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    alertDiv.style.opacity = '0';
+    alertDiv.style.transition = 'opacity 0.5s ease';
+    setTimeout(() => alertDiv.remove(), 500);
+  }, 5000);
+}

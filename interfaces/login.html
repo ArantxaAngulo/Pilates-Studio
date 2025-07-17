@@ -265,76 +265,8 @@
       </div>
     </div>
   </div>
-
-  <script>
-    // Form validation
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      
-      // Basic validation
-      if (!email || !password) {
-        alert('Por favor completa todos los campos');
-        return;
-      }
-      
-      // Here you would typically send the data to your server
-      alert('Inicio de sesión exitoso. Redirigiendo...');
-      // window.location.href = 'dashboard.html';
-    });
-
-    // Animation observer
-    document.addEventListener('DOMContentLoaded', function() {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-          }
-        });
-      }, {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-      });
-
-      // Observe all elements with animation classes
-      const animatedElements = document.querySelectorAll('.title, .subtitle, .form-label, .form-control, .form-row, .btn-login, .bottom-link');
-      animatedElements.forEach(el => observer.observe(el));
-
-      // Sequential animation trigger (alternative approach)
-      setTimeout(() => {
-        const elements = [
-          '.title',
-          '.subtitle',
-          '.form-label',
-          '.form-control',
-          '.form-row',
-          '.btn-login',
-          '.bottom-link'
-        ];
-
-        elements.forEach((selector, index) => {
-          setTimeout(() => {
-            const element = document.querySelector(selector);
-            if (element) {
-              element.classList.add('visible');
-            }
-          }, index * 200);
-        });
-      }, 300);
-    });
-
-    // Enhanced input focus effects
-    document.querySelectorAll('.form-control').forEach(input => {
-      input.addEventListener('focus', function() {
-        this.parentElement.querySelector('.form-label').style.color = '#d4b2a7';
-      });
-      
-      input.addEventListener('blur', function() {
-        this.parentElement.querySelector('.form-label').style.color = '#000';
-      });
-    });
-  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
