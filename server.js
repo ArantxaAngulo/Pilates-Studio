@@ -11,7 +11,38 @@ const https = require('https');
 const fs = require('fs');
 
 // SECURITY
-app.use(helmet()); // Sets various security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'", 
+        "'unsafe-inline'", // Allow inline scripts for development
+        "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com"
+      ],
+      styleSrc: [
+        "'self'", 
+        "'unsafe-inline'", // Allow inline styles
+        "https://cdn.jsdelivr.net",
+        "https://fonts.googleapis.com"
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com"
+      ],
+      imgSrc: [
+        "'self'", 
+        "data:", 
+        "https:"
+      ],
+      connectSrc: [
+        "'self'",
+        "http://localhost:5000" // Allow API calls
+      ]
+    },
+  },
+}));
 app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
 
 // CORS CONFIG (deepseek enhanced)
@@ -47,9 +78,25 @@ mongoose.connect(process.env.MONGODB_URI)
   app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'interfaces', 'landing-page.html'));
   });
-  // api routes
+
+  // API ROUTES
   const userRoutes = require('./routes/user.routes');
+  const classSessionRoutes = require('./routes/classSessions.routes');
+  const classTypeRoutes = require('./routes/classTypes.routes');
+  const instructorRoutes = require('./routes/instructors.routes');
+  const packageRoutes = require('./routes/packages.routes');
+  const purchaseRoutes = require('./routes/purchases.routes');
+  const reservationRoutes = require('./routes/reservations.routes');
+
+  // Mount API routes
   app.use('/api/users', userRoutes);
+  app.use('/api/class-sessions', classSessionRoutes);
+  app.use('/api/class-types', classTypeRoutes);
+  app.use('/api/instructors', instructorRoutes);
+  app.use('/api/packages', packageRoutes);
+  app.use('/api/purchases', purchaseRoutes);
+  app.use('/api/reservations', reservationRoutes);
+
 
   app.use((err, req, res, next) => { // Basic error handling
     console.error(err.stack);
