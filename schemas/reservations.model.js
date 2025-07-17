@@ -8,12 +8,12 @@ const reservationsSchema = new mongoose.Schema({
       required: true
     },
     sessionId: {
-      type: ObjectId,
+      type: Types.ObjectId,
       ref: 'classSession',
       required: true
     },
     purchaseId: {
-      type: ObjectId,
+      type: Types.ObjectId,
       ref: 'Purchase',
       required: true
     },

@@ -21,7 +21,7 @@ const classSessionsSchema = new mongoose.Schema({
       default: 0
     },
     instructorId: {
-      type: ObjectId,
+      type: Types.ObjectId,
       ref: 'Instructor'
     }
   });
