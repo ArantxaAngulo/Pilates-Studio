@@ -12,7 +12,10 @@ const verifyToken = (req, res, next) => {
     });
   }
 
-  // 3. Use JWT_SECRET with fallback
+  // 3. Extract token 
+  const token = authHeader.split(' ')[1];
+
+  // 3.5. Use JWT_SECRET with fallback
   const jwtSecret = process.env.JWT_SECRET || '123xyz';
 
   // 4. Verify token
@@ -36,7 +39,8 @@ const verifyToken = (req, res, next) => {
     // 5. Attach decoded user to request
     req.user = {
       id: decoded.id,
-      role: decoded.role 
+      email: decoded.email,
+      role: decoded.role || 'user' // Default role
     };
     
     next();
