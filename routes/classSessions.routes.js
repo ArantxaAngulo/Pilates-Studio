@@ -7,12 +7,12 @@ const { verifyToken } = require('../middleware/auth.middleware');
 // Get available sessions for booking
 router.get('/available', classSessionsController.getAvailableSessions);
 
-// PROTECTED ROUTES (require authentication)
 // Get all class sessions with filtering
-router.get('/', verifyToken, classSessionsController.getAllClassSessions);
+router.get('/', classSessionsController.getAllClassSessions);
 
 // Get specific class session by ID
-router.get('/:id', verifyToken, classSessionsController.getClassSessionById);
+router.get('/:id', classSessionsController.getClassSessionById);
+
 
 // ADMIN ONLY ROUTES
 // Create new class session
