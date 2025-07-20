@@ -414,11 +414,11 @@ body {
     opacity: 1;
 }
 .auth-buttons {
-    position: absolute;
-    top: 30px;
-    right: 30px;
     display: flex;
     gap: 15px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-bottom: 20px;
 }
 .btn-auth {
     padding: 12px 24px;

@@ -226,7 +226,7 @@
             
             <!-- Login Button (right-aligned) -->
             <div class="d-flex" style="margin-right: 7rem;">
-                <button class="btn btn-secondary px-5 py-3 rounded-4">Log In</button>
+                <button class="btn btn-secondary px-5 py-3 rounded-4" onclick="window.location.href='login.html'">Log In</button>
             </div>
         </div>
     </div>
@@ -237,7 +237,7 @@
         <div class="hero-content fade-in-up"> 
             <h1 class="display-1 fw-light" style="color: #7D6666;">Paquetes</h1>
             <p class="mb-4">Acceso ilimitado a clases exclusivas en un espacio diseñado para tu bienestar, con atención personalizada y un ambiente sereno. Tu cuerpo y mente lo agradecerán.</p>
-            <a href="#paquetes" class="btn-agendar">Agendar clase</a>
+            <a href="calendar.html" class="btn-agendar">Agendar clase</a>
         </div>
     </section>
 
@@ -346,10 +346,6 @@
             </div>
 
             <div class="footer-right">
-                <div class="auth-buttons">
-                    <a href="#" class="btn-auth btn-login">Log In</a>
-                    <a href="#" class="btn-auth btn-signup">Sign Up</a>
-                </div>
                 <div class="footer-column">
                     <ul>
                         <li><a href="#">Términos y Condiciones</a></li>
@@ -363,8 +359,14 @@
                         <li><a href="#">Contacto</a></li>
                     </ul>
                 </div>
+
+                <div class="footer-column">
+                  <div class="auth-buttons">
+                      <a href="login.html" class="btn-auth btn-login">Log In</a>
+                      <a href="sign-up.html" class="btn-auth btn-signup">Sign Up</a>
+                  </div>
+                </div>  
             </div>
-        </div>
 
         <div class="footer-bottom">
             <div class="footer-bottom-left">
