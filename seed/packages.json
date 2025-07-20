@@ -1,0 +1,58 @@
+[
+  {
+    "_id": "pkg-trial",
+    "name": "Clase de Prueba",
+    "creditCount": 1,
+    "validDays": 14,
+    "price": 150
+  },
+  {
+    "_id": "pkg-single",
+    "name": "1 Clase",
+    "creditCount": 1,
+    "validDays": 28,
+    "price": 250
+  },
+  {
+    "_id": "pkg-3",
+    "name": "3 Clases",
+    "creditCount": 3,
+    "validDays": 28,
+    "price": 650
+  },
+  {
+    "_id": "pkg-9",
+    "name": "9 Clases",
+    "creditCount": 9,
+    "validDays": 35,
+    "price": 1800
+  },
+  {
+    "_id": "pkg-14",
+    "name": "14 Clases",
+    "creditCount": 14,
+    "validDays": 35,
+    "price": 2600
+  },
+  {
+    "_id": "pkg-19",
+    "name": "19 Clases",
+    "creditCount": 19,
+    "validDays": 42,
+    "price": 3000
+  },
+  {
+    "_id": "pkg-24",
+    "name": "24 Clases",
+    "creditCount": 24,
+    "validDays": 49,
+    "price": 3500
+  },
+  {
+    "_id": "pkg-35",
+    "name": "35 Clases",
+    "creditCount": 35,
+    "validDays": 56,
+    "price": 4700
+  }
+]

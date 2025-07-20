@@ -1,0 +1,114 @@
+[
+  {
+    "name": {
+      "first": "Andrea",
+      "last": "Martínez"
+    },
+    "bio": "Instructora certificada con más de 8 años de experiencia en Pilates. Especializada en reformer y rehabilitación postural. Le apasiona ayudar a sus estudiantes a conectar mente y cuerpo.",
+    "certifications": [
+      "Pilates Method Alliance (PMA) Certified",
+      "Reformer Specialist",
+      "Mat Pilates Instructor",
+      "Posture Restoration Specialist"
+    ],
+    "profilePictureUrl": "https://images.unsplash.com/photo-1594736797933-d0282ba4605a?w=400&h=400&fit=crop&crop=face"
+  },
+  {
+    "name": {
+      "first": "María",
+      "last": "Rodriguez"
+    },
+    "bio": "Instructora de yoga y Pilates con formación en India y certificaciones internacionales. Combina técnicas tradicionales con enfoques modernos para crear experiencias transformadoras.",
+    "certifications": [
+      "200hr Yoga Teacher Training",
+      "500hr Advanced Yoga Certification",
+      "Pilates Comprehensive Instructor",
+      "Mindfulness & Meditation Teacher"
+    ],
+    "profilePictureUrl": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop&crop=face"
+  },
+  {
+    "name": {
+      "first": "Sofia",
+      "last": "López"
+    },
+    "bio": "Ex-bailarina profesional convertida en instructora de barre y Pilates. Su estilo único combina la gracia del ballet con la fuerza del fitness funcional.",
+    "certifications": [
+      "Barre Above Instructor",
+      "Classical Pilates Certification",
+      "Ballet Fitness Specialist",
+      "TRX Suspension Training"
+    ],
+    "profilePictureUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=face"
+  },
+  {
+    "name": {
+      "first": "Carmen",
+      "last": "Fernández"
+    },
+    "bio": "Fisioterapeuta y instructora de Pilates especializada en recuperación de lesiones y fortalecimiento preventivo. Enfoque personalizado para cada estudiante.",
+    "certifications": [
+      "Licenciatura en Fisioterapia",
+      "BASI Pilates Comprehensive",
+      "Injury Prevention Specialist",
+      "Clinical Pilates Certification"
+    ],
+    "profilePictureUrl": "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=face"
+  },
+  {
+    "name": {
+      "first": "Elena",
+      "last": "Santos"
+    },
+    "bio": "Instructora de alta energía especializada en Power & Burn y clases de acondicionamiento físico. Motiva a sus estudiantes a superar sus límites con seguridad y diversión.",
+    "certifications": [
+      "NASM Personal Trainer",
+      "Power Pilates Instructor",
+      "HIIT Training Specialist",
+      "Nutrition Coach Level 1"
+    ],
+    "profilePictureUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face"
+  },
+  {
+    "name": {
+      "first": "Isabella",
+      "last": "Morales"
+    },
+    "bio": "Maestra de yoga certificada en Hatha y Vinyasa con enfoque en mindfulness y bienestar integral. Crea un ambiente seguro y acogedor para todos los niveles.",
+    "certifications": [
+      "E-RYT 500 Yoga Alliance",
+      "Yin Yoga Specialist",
+      "Prenatal Yoga Instructor",
+      "Meditation Teacher Training"
+    ],
+    "profilePictureUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face"
+  },
+  {
+    "name": {
+      "first": "Lucía",
+      "last": "Vargas"
+    },
+    "bio": "Instructora joven y dinámica especializada en Sculpt y entrenamiento funcional. Su pasión por el fitness es contagiosa y motiva a estudiantes de todas las edades.",
+    "certifications": [
+      "ACE Personal Trainer",
+      "Sculpt Method Instructor",
+      "Functional Movement Screen",
+      "Youth Fitness Specialist"
+    ],
+    "profilePictureUrl": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face"
+  },
+  {
+    "name": {
+      "first": "Valentina",
+      "last": "Cruz"
+    },
+    "bio": "Instructora senior con más de 12 años de experiencia. Mentora de nuevos instructores y especialista en adaptar clases para necesidades especiales y tercera edad.",
+    "certifications": [
+      "Master Trainer Pilates",
+      "Senior Fitness Specialist",
+      "Adaptive Fitness Instructor",
+      "Continuing Education Provider"
+    ],
+    "profilePictureUrl": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop&crop=face"
+  }
+]
