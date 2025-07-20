@@ -72,6 +72,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // STATIC 
   app.use(express.static(path.join(__dirname, 'interfaces')));
+  app.use('/images', express.static(path.join(__dirname, 'interfaces', 'images')));
 
 // ROUTES
   // root
