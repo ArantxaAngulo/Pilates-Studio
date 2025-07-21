@@ -56,13 +56,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // RATE LIMITING
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per window
+/*const limiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 60, // limit each IP to 50 requests per window
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use(limiter);
+app.use(limiter); */
 
 // DB CONNECT
 mongoose.connect(process.env.MONGODB_URI)
