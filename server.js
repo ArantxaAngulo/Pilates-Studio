@@ -55,6 +55,15 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// PAYMENT SCRIPT
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://sdk.mercadopago.com;"
+  );
+  next();
+});
+
 // RATE LIMITING
 /*const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
@@ -73,6 +82,7 @@ mongoose.connect(process.env.MONGODB_URI)
 // STATIC 
   app.use(express.static(path.join(__dirname, 'interfaces')));
   app.use('/images', express.static(path.join(__dirname, 'interfaces', 'images')));
+  app.use('/interfaces', express.static(path.join(__dirname, 'interfaces')));
 
 // ROUTES
   // root
@@ -87,7 +97,7 @@ mongoose.connect(process.env.MONGODB_URI)
   const instructorRoutes = require('./routes/instructors.routes');
   const packageRoutes = require('./routes/packages.routes');
   const purchaseRoutes = require('./routes/purchases.routes');
-  const reservationRoutes = require('./routes/reservations.routes');
+  const reservationRoutes = require('./routes/reservations.routes');const paymentRoutes = require('./routes/payment.routes');
 
   // Mount API routes
   app.use('/api/users', userRoutes);
@@ -97,6 +107,7 @@ mongoose.connect(process.env.MONGODB_URI)
   app.use('/api/packages', packageRoutes);
   app.use('/api/purchases', purchaseRoutes);
   app.use('/api/reservations', reservationRoutes);
+  app.use('/api/payments', paymentRoutes);
 
 
   app.use((err, req, res, next) => { // Basic error handling

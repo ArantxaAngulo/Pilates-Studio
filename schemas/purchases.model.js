@@ -24,6 +24,10 @@ const purchasesSchema = new mongoose.Schema({
     creditsLeft: {
       type: Number,
       required: true
+    },
+    mercadoPagoPaymentId: {
+      type: String,
+      required: false // Optional, for tracking MercadoPago payments
     }
 });
  

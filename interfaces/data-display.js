@@ -4,34 +4,9 @@
 // PACKAGES PAGE
 // ======================
 async function displayPackages() {
-    const packagesGrid = document.querySelector('.packages-grid');
-    if (!packagesGrid) return;
-
-    try {
-        // Show loading state
-        packagesGrid.innerHTML = '<div class="text-center"><p>Cargando paquetes...</p></div>';
-
-        const response = await apiService.packages.getAll({ sortBy: 'creditCount', order: 'asc' });
-        const packages = response.data.packages;
-
-        packagesGrid.innerHTML = packages.map(pkg => `
-            <div class="package-card">
-                <h3 class="package-title">${pkg.name}</h3>
-                <div class="package-price">$${pkg.price.toLocaleString('es-MX')}</div>
-                <p class="package-validity">Válido por ${pkg.validDays} ${pkg.validDays === 1 ? 'día' : 'días'}*</p>
-                <a href="#" class="btn-comprar" data-package-id="${pkg._id}">Comprar →</a>
-            </div>
-        `).join('');
-
-        // Add click handlers for purchase buttons
-        document.querySelectorAll('.btn-comprar').forEach(btn => {
-            btn.addEventListener('click', handlePackagePurchase);
-        });
-
-    } catch (error) {
-        console.error('Error loading packages:', error);
-        packagesGrid.innerHTML = '<p class="text-center text-danger">Error al cargar los paquetes. Por favor, intenta de nuevo.</p>';
-    }
+    // This function is not used anymore as packages.html has its own implementation
+    // with MercadoPago integration
+    return;
 }
 
 // ======================

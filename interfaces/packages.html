@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
     <style>
         .btn-secondary:hover {
             background-color: #c19a8a;
@@ -150,12 +151,18 @@
             text-decoration: none;
             display: inline-block;
             font-size: 0.95rem;
+            cursor: pointer;
         }
 
         .btn-comprar:hover {
             background: #D4B2A7;
             color: white;
             transform: translateY(-2px);
+        }
+
+        .btn-comprar:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .btn-agendar {
@@ -177,6 +184,23 @@
             transform: translateY(-3px);
             box-shadow: 0 8px 20px rgba(212, 178, 167, 0.4);
             color: white;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #D4B2A7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @media (max-width: 768px) {
@@ -244,101 +268,42 @@
     <!-- Packages Section -->
     <section class="packages-section" id="paquetes">
         <div class="container">
-            <div class="packages-grid">
-                <!-- Clase de Prueba -->
-                <div class="package-card">
-                    <h3 class="package-title">Clase de Prueba</h3>
-                    <div class="package-price">$150</div>
-                    <p class="package-validity">Válido por 2 semanas*</p>
-                    <a href="#" class="btn-comprar">Comprar →</a>
-                </div>
-
-                <!-- 1 Clase -->
-                <div class="package-card">
-                    <h3 class="package-title">1 Clase</h3>
-                    <div class="package-price">$250</div>
-                    <p class="package-validity">Válido por 4 semanas*</p>
-                    <a href="#" class="btn-comprar">Comprar →</a>
-                </div>
-
-                <!-- 3 Clases -->
-                <div class="package-card">
-                    <h3 class="package-title">3 Clases</h3>
-                    <div class="package-price">$650</div>
-                    <p class="package-validity">Válido por 4 semanas*</p>
-                    <a href="#" class="btn-comprar">Comprar →</a>
-                </div>
-
-                <!-- 9 Clases -->
-                <div class="package-card">
-                    <h3 class="package-title">9 Clases</h3>
-                    <div class="package-price">$1800</div>
-                    <p class="package-validity">Válido por 5 semanas*</p>
-                    <a href="#" class="btn-comprar">Comprar →</a>
-                </div>
-
-                <!-- 14 Clases -->
-                <div class="package-card">
-                    <h3 class="package-title">14 Clases</h3>
-                    <div class="package-price">$2600</div>
-                    <p class="package-validity">Válido por 5 semanas*</p>
-                    <a href="#" class="btn-comprar">Comprar →</a>
-                </div>
-
-                <!-- 19 Clases -->
-                <div class="package-card">
-                    <h3 class="package-title">19 Clases</h3>
-                    <div class="package-price">$3000</div>
-                    <p class="package-validity">Válido por 6semanas*</p>
-                    <a href="#" class="btn-comprar">Comprar →</a>
-                </div>
-
-                <!-- 24 Clases -->
-                <div class="package-card">
-                    <h3 class="package-title">24 Clases</h3>
-                    <div class="package-price">$3500</div>
-                    <p class="package-validity">Válido por 7 semanas*</p>
-                    <a href="#" class="btn-comprar">Comprar →</a>
-                </div>
-
-                <!-- 35 Clases -->
-                <div class="package-card">
-                    <h3 class="package-title">35 Clases</h3>
-                    <div class="package-price">$4700</div>
-                    <p class="package-validity">Válido por 8 semanas*</p>
-                    <a href="#" class="btn-comprar">Comprar →</a>
+            <div class="packages-grid" id="packages-container">
+                <!-- Packages will be loaded dynamically -->
+                <div class="text-center">
+                    <p>Cargando paquetes...</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-<footer class="footer-container">
-    <div class="footer-content">
-        <div class="footer-row">
-            <div class="footer-left">
-                <div class="brand-section">
-                    <h1>Nombre Pilates</h1>
-                    <p class="social-text">Síguenos en Redes Sociales</p>
-                    <div class="social-icons">
-                        <a href="#" class="social-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                            </svg>
-                        </a>
-                        <a href="#" class="social-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                            </svg>
-                        </a>
-                        <a href="#" class="social-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                            </svg>
-                        </a>
-                        <a href="#" class="social-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    <footer class="footer-container">
+        <div class="footer-content">
+            <div class="footer-row">
+                <div class="footer-left">
+                    <div class="brand-section">
+                        <h1>Nombre Pilates</h1>
+                        <p class="social-text">Síguenos en Redes Sociales</p>
+                        <div class="social-icons">
+                            <a href="#" class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                                </svg>
+                            </a>
+                            <a href="#" class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                                </svg>
+                            </a>
+                            <a href="#" class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                </svg>
+                            </a>
+                            <a href="#" class="social-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                             </svg>
                         </a>
                     </div>
@@ -382,5 +347,193 @@
     <script src="dynamic-navbar.js"></script>
     <script src="data-display.js"></script>
     <script src="script.js"></script>
+    <script>
+    // Initialize MercadoPago
+    const mp = new MercadoPago('APP_USR-b0be035f-37fb-4a36-b174-c86393b3b2f2', {
+        locale: 'es-MX'
+    });
+
+    // Package data that mirrors your database
+    const packagesData = [
+        { id: 'pkg-trial', title: 'Clase de Prueba', price: 150, credits: 1, days: 14 },
+        { id: 'pkg-single', title: '1 Clase', price: 250, credits: 1, days: 28 },
+        { id: 'pkg-3', title: '3 Clases', price: 650, credits: 3, days: 28 },
+        { id: 'pkg-9', title: '9 Clases', price: 1800, credits: 9, days: 35 },
+        { id: 'pkg-14', title: '14 Clases', price: 2600, credits: 14, days: 35 },
+        { id: 'pkg-19', title: '19 Clases', price: 3000, credits: 19, days: 42 },
+        { id: 'pkg-24', title: '24 Clases', price: 3500, credits: 24, days: 49 },
+        { id: 'pkg-35', title: '35 Clases', price: 4700, credits: 35, days: 56 }
+    ];
+
+    // Function to check if user is logged in
+    function isUserLoggedIn() {
+        const token = localStorage.getItem('token');
+        if (!token) return false;
+        
+        try {
+            const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+            const expirationTime = tokenPayload.exp * 1000;
+            return Date.now() < expirationTime;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Function to get user ID from token
+    function getUserIdFromToken() {
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+        
+        try {
+            const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+            return tokenPayload.id;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Function to handle package purchase
+    async function handlePackagePurchase(packageData) {
+        // Validate packageData exists and has required properties
+        if (!packageData || typeof packageData !== 'object') {
+            console.error('Invalid packageData:', packageData);
+            alert('Error: Datos del paquete no válidos');
+            return;
+        }
+
+        console.log('Processing purchase for package:', packageData);
+        
+        // Check if user is logged in
+        if (!isUserLoggedIn()) {
+            sessionStorage.setItem('intendedAction', JSON.stringify({
+                action: 'purchasePackage',
+                packageId: packageData.id
+            }));
+            window.location.href = 'login.html';
+            return;
+        }
+
+        // Get user ID
+        const userId = getUserIdFromToken();
+        if (!userId) {
+            alert('Error: No se pudo obtener la información del usuario');
+            return;
+        }
+
+        // First, check if user already has an active package
+        try {
+            const activePackageResponse = await fetch(`http://localhost:5000/api/purchases/user/${userId}/active`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (activePackageResponse.ok) {
+                const activePackageData = await activePackageResponse.json();
+                
+                if (activePackageData.data && activePackageData.data.activePackage) {
+                    alert('Ya tienes un paquete activo. Debes usarlo antes de comprar otro.');
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Error checking active package:', error);
+            // Continue with purchase even if check fails
+        }
+
+        // Disable all buttons and show loading
+        const buttons = document.querySelectorAll('.btn-comprar');
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner" style="display: inline-block;"></div>';
+        });
+
+        try {
+            // Create the metadata for the purchase
+            const metadata = {
+                userId: userId,
+                packageId: packageData.id,
+                timestamp: new Date().toISOString()
+            };
+
+            // Create MercadoPago preference
+            const response = await fetch('http://localhost:5000/api/payments/create_preference', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    title: packageData.title,
+                    price: packageData.price,
+                    quantity: 1,
+                    external_reference: JSON.stringify(metadata) // Pass metadata
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al crear la preferencia de pago');
+            }
+
+            const preferenceData = await response.json();
+            console.log('Preference created:', preferenceData);
+
+            // Redirect to MercadoPago checkout
+            window.location.href = preferenceData.init_point;
+
+        } catch (error) {
+            console.error('Error creating payment preference:', error);
+            alert('Error al procesar el pago. Por favor, intenta nuevamente.');
+            
+            // Re-enable buttons
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.innerHTML = 'Comprar →';
+            });
+        }
+    }
+
+    // Function to render packages
+    function renderPackages() {
+        const container = document.getElementById('packages-container');
+        
+        container.innerHTML = packagesData.map((pkg) => {
+            return `
+            <div class="package-card">
+                <h3 class="package-title">${pkg.title}</h3>
+                <div class="package-price">$${pkg.price.toLocaleString('es-MX')}</div>
+                <p class="package-validity">Válido por ${pkg.days} ${pkg.days === 1 ? 'día' : 'días'}*</p>
+                <button class="btn-comprar" 
+                    data-package='${JSON.stringify(pkg)}'
+                    onclick="handlePackagePurchase(${JSON.stringify(pkg).replace(/"/g, '&quot;')})">
+                    Comprar →
+                </button>
+            </div>
+            `;
+        }).join('');
+    }
+
+    // Load packages when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        renderPackages();
+        
+        // Check if returning from login with intended action
+        const intendedAction = sessionStorage.getItem('intendedAction');
+        if (intendedAction && isUserLoggedIn()) {
+            const action = JSON.parse(intendedAction);
+            sessionStorage.removeItem('intendedAction');
+            
+            if (action.action === 'purchasePackage') {
+                const packageData = packagesData.find(pkg => pkg.id === action.packageId);
+                if (packageData) {
+                    handlePackagePurchase(packageData);
+                }
+            }
+        }
+    });
+
+    // Make handlePackagePurchase available globally
+    window.handlePackagePurchase = handlePackagePurchase;
+    </script>
 </body>
 </html>
