@@ -389,63 +389,47 @@ exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
     
     try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password required' });
+        }
+
         const user = await User.findOne({ email });
         if (!user) {
-            console.log('User not found:', email);
-            return res.status(404).json({ error: 'Invalid credentials' }); // Don't reveal if user exists
-        }
-        
-        console.log('Found user, checking password');
-        const isMatch = await user.comparePassword(password);
-        
-        if (!isMatch) {
-            console.log('Password mismatch for:', email);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
-        
-        // Use JWT_SECRET with fallback for development
-        const jwtSecret = process.env.JWT_SECRET || '123xyz';
-        
+
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role || 'user' },
-            jwtSecret,
+            process.env.JWT_SECRET,
             { expiresIn: '15m' }
         );
 
         const refreshToken = jwt.sign(
             { id: user._id },
-            jwtSecret,
+            process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
-        
-        // Get user's active package for response
-        const activePackage = await Purchase.findOne({
-            userId: user._id,
-            expiresAt: { $gt: new Date() },
-            creditsLeft: { $gt: 0 }
-        }).populate('packageId', 'name creditCount');
-        
-        console.log('Login successful for:', email);
-        res.json({ 
+
+        return res.json({  // Note the return statement
             token,
             refreshToken,
-            expiresIn: 15 * 60,
             user: {
                 id: user._id,
                 name: user.name,
-                email: user.email,
-                role: user.role || 'user',
-                activePackage
+                email: user.email
             }
         });
-        
+
     } catch (error) {
-        console.error('Login error details:', error);
-        res.status(500).json({ 
-            error: 'Server Error', 
-            message: error.message,
-            stack: process.env.NODE_ENV === 'production' ? '🥞' : error.stack 
-        });
+        console.error('Login error:', error);
+        return res.status(500).json({ error: 'Login failed' }); // Note the return
     }
 };
 

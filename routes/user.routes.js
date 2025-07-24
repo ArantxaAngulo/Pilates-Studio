@@ -23,8 +23,10 @@ const registerLimiter = rateLimit({
 // User registration
 router.post('/register', registerLimiter, userController.createUser);
 
-// User login
-router.post('/login', loginLimiter, userController.loginUser);
+// User login update
+router.post('/login', loginLimiter, (req, res, next) => {
+    userController.loginUser(req, res).catch(next);
+});
 
 // Refresh JWT token
 router.post('/refresh-token', userController.refreshToken);
