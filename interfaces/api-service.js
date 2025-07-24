@@ -393,3 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
             break;
     }
 });
+
+if (typeof window !== 'undefined') {
+    window.API_BASE_URL = API_BASE_URL;
+}
