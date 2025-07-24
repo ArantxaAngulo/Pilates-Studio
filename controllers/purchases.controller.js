@@ -1,7 +1,17 @@
 const Purchase = require('../schemas/purchases.model');
 const Package = require('../schemas/packages.model');
 const User = require('../schemas/user.model');
+const packagesData = require('../seed/packages.json');
 const mongoose = require('mongoose');
+const businessRules = require('../config/businessRules.config');
+const { canUserPurchase, createPurchaseWithValidation } = require('../helpers/purchaseHelper');
+
+// helper func
+async function getPackageDetails(packageId) {
+    // Try database first, fallback to static data
+    return await Package.findOne({ _id: packageId }) || 
+           packagesData.find(pkg => pkg._id === packageId);
+}
 
 // GET ALL PURCHASES (Admin only)
 exports.getAllPurchases = async (req, res) => {
@@ -96,11 +106,24 @@ exports.getPurchaseById = async (req, res) => {
 
 // CREATE NEW PURCHASE (Buy Package)
 exports.createPurchase = async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
     try {
         const { userId, packageId } = req.body;
+        
+        // Business rule validation
+        if (!businessRules.getRule('purchase', 'allowMultipleActivePackages')) {
+            const activePurchase = await Purchase.findOne({
+                userId,
+                expiresAt: { $gt: new Date() },
+                creditsLeft: { $gt: 0 }
+            });
+
+            if (activePurchase) {
+                return res.status(400).json({
+                    error: 'User already has an active package',
+                    activePackage: activePurchase
+                });
+            }
+        }
 
         // Validate required fields
         if (!userId || !packageId) {
@@ -113,63 +136,30 @@ exports.createPurchase = async (req, res) => {
             });
         }
 
-        // Verify user exists
-        const user = await User.findById(userId).session(session);
-        if (!user) {
-            await session.abortTransaction();
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Verify package exists
-        const package = await Package.findById(packageId).session(session);
-        if (!package) {
-            await session.abortTransaction();
-            return res.status(404).json({ error: 'Package not found' });
-        }
-
         // Check if user is trying to buy for themselves (unless admin)
         if (req.user.role !== 'admin' && userId !== req.user.id) {
-            await session.abortTransaction();
             return res.status(403).json({ error: 'Not authorized to purchase for other users' });
         }
 
-        // BUSINESS RULE: Check if user already has an active package
-        const activePurchase = await Purchase.findOne({
+        // Use the helper function with business rules
+        const purchaseResult = await createPurchaseWithValidation({
             userId,
-            expiresAt: { $gt: new Date() },
-            creditsLeft: { $gt: 0 }
-        }).session(session);
+            packageId,
+            paymentId: null // Manual purchase, no payment ID
+        }, {
+            allowMultiple: businessRules.getRule('purchase', 'allowMultipleActivePackages'),
+            skipActiveCheck: req.user.role === 'admin' // Admins can bypass checks
+        });
 
-        if (activePurchase) {
-            await session.abortTransaction();
+        if (!purchaseResult.success) {
             return res.status(400).json({ 
-                error: 'User already has an active package',
-                details: {
-                    activePackage: activePurchase.packageId,
-                    creditsLeft: activePurchase.creditsLeft,
-                    expiresAt: activePurchase.expiresAt
-                }
+                error: purchaseResult.error,
+                activePackage: purchaseResult.activePackage
             });
         }
 
-        // Calculate expiration date
-        const boughtAt = new Date();
-        const expiresAt = new Date(boughtAt);
-        expiresAt.setDate(expiresAt.getDate() + package.validDays);
-
-        // Create purchase
-        const purchase = await Purchase.create([{
-            userId,
-            packageId,
-            boughtAt,
-            expiresAt,
-            creditsLeft: package.creditCount
-        }], { session });
-
-        await session.commitTransaction();
-
         // Get populated purchase for response
-        const populatedPurchase = await Purchase.findById(purchase[0]._id)
+        const populatedPurchase = await Purchase.findById(purchaseResult.purchase._id)
             .populate('userId', 'name email')
             .populate('packageId', 'name creditCount validDays price');
 
@@ -179,8 +169,6 @@ exports.createPurchase = async (req, res) => {
         });
 
     } catch (err) {
-        await session.abortTransaction();
-        
         if (err.name === 'ValidationError') {
             const errors = {};
             Object.keys(err.errors).forEach(key => {
@@ -192,8 +180,6 @@ exports.createPurchase = async (req, res) => {
             });
         }
         res.status(500).json({ error: err.message });
-    } finally {
-        session.endSession();
     }
 };
 
@@ -264,35 +250,37 @@ exports.getUserPurchases = async (req, res) => {
 // GET USER'S ACTIVE PACKAGE
 exports.getUserActivePackage = async (req, res) => {
     try {
-        const userId = req.params.userId;
-
-        // Check if user is requesting their own package (unless admin)
-        if (req.user.role !== 'admin' && userId !== req.user.id) {
-            return res.status(403).json({ error: 'Not authorized to view other users packages' });
-        }
-
         const activePurchase = await Purchase.findOne({
-            userId,
+            userId: req.params.userId,
             expiresAt: { $gt: new Date() },
             creditsLeft: { $gt: 0 }
-        })
-        .populate('packageId', 'name creditCount validDays price')
-        .populate('userId', 'name email');
+        }).lean(); // Use lean() for better performance
 
         if (!activePurchase) {
-            return res.json({
+            return res.json({ 
                 status: 'success',
-                data: { activePackage: null },
-                message: 'No active package found'
+                data: { activePackage: null }
             });
         }
 
+        // Get package details
+        const packageDetails = await getPackageDetails(activePurchase.packageId);
+        
         res.json({
             status: 'success',
-            data: { activePackage: activePurchase }
+            data: { 
+                activePackage: {
+                    ...activePurchase,
+                    packageId: packageDetails || activePurchase.packageId
+                }
+            }
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Error in getUserActivePackage:', err);
+        res.status(500).json({ 
+            error: 'Internal server error',
+            message: err.message
+        });
     }
 };
 
@@ -431,21 +419,15 @@ exports.canUserPurchase = async (req, res) => {
             return res.status(403).json({ error: 'Not authorized' });
         }
 
-        const activePurchase = await Purchase.findOne({
-            userId,
-            expiresAt: { $gt: new Date() },
-            creditsLeft: { $gt: 0 }
-        }).populate('packageId', 'name creditCount');
-
-        const canPurchase = !activePurchase;
+        // Use the helper function
+        const eligibility = await canUserPurchase(
+            userId, 
+            businessRules.getRule('purchase', 'allowMultipleActivePackages')
+        );
 
         res.json({
             status: 'success',
-            data: {
-                canPurchase,
-                activePackage: activePurchase || null,
-                reason: canPurchase ? 'No active package' : 'User has an active package'
-            }
+            data: eligibility
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

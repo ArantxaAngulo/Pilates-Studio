@@ -1,4 +1,11 @@
-const { MercadoPagoConfig, Preference } = require('mercadopago');
+const mongoose = require('mongoose');
+const envConfig = require('../config/environment');
+const Purchase = require('../schemas/purchases.model');
+const Package = require('../schemas/packages.model');
+const User = require('../schemas/user.model');
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+const businessRules = require('../config/businessRules.config');
+const { canUserPurchase, createPurchaseWithValidation } = require('../helpers/purchaseHelper');
 require('dotenv').config();
 
 // Log to check if access token is loaded
@@ -14,6 +21,7 @@ const client = new MercadoPagoConfig({
 });
 
 const preference = new Preference(client);
+const paymentClient = new Payment(client); // Initialize payment client
 
 // Create payment preference
 exports.createPreference = async (req, res) => {
@@ -43,12 +51,12 @@ exports.createPreference = async (req, res) => {
         }
       ],
       back_urls: {
-        success: 'http://localhost:5000/api/payments/success',
-        failure: 'http://localhost:5000/api/payments/failure',
-        pending: 'http://localhost:5000/api/payments/pending'
+          success: envConfig.mercadoPago.successUrl,
+          failure: envConfig.mercadoPago.failureUrl,
+          pending: envConfig.mercadoPago.pendingUrl
       },
-      // Remove auto_return for now to avoid the error
-      // auto_return: 'approved',
+      notification_url: envConfig.mercadoPago.webhookUrl,
+      auto_return: 'approved',
       external_reference: external_reference || '',
       statement_descriptor: 'PILATES STUDIO',
       payment_methods: {
@@ -88,60 +96,110 @@ exports.createPreference = async (req, res) => {
 // Handle successful payment
 exports.handleSuccess = async (req, res) => {
   try {
-    const { collection_id, collection_status, payment_id, status, external_reference, merchant_order_id } = req.query;
+    const { payment_id, status, external_reference, collection_status } = req.query;
+    console.log('Payment success callback received:', { payment_id, status, external_reference, collection_status });
 
-    console.log('Payment success callback:', req.query);
-
-    // Parse the metadata from external_reference
-    if (external_reference && collection_status === 'approved') {
-      const metadata = JSON.parse(decodeURIComponent(external_reference));
+    // ===== SANDBOX BLOCK =====
+    if (businessRules.payment.environment === 'sandbox') {
+      console.log("🟡 Sandbox mode - Bypassing payment verification");
       
-      // Create the purchase in the database
-      const Purchase = require('../schemas/purchases.model');
-      const Package = require('../schemas/packages.model');
-      
-      // Get package details - note that the packageId is a string ID, not ObjectId
-      const package = await Package.findById(metadata.packageId);
-      if (!package) {
-        console.error('Package not found:', metadata.packageId);
-        return res.redirect('/interfaces/error.html');
+      try {
+        const metadata = JSON.parse(decodeURIComponent(external_reference));
+        
+        // In development, respect business rules but log everything
+        const eligibility = await canUserPurchase(
+            metadata.userId, 
+            businessRules.getRule('purchase', 'allowMultipleActivePackages')
+        );
+        
+        console.log("[DEV] Sandbox eligibility check:", eligibility);
+        
+        if (!eligibility.canPurchase) {
+            console.log("[DEV] Blocking sandbox purchase due to business rules");
+            return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent(eligibility.reason)}`);
+        }
+
+        // Still respect business rules even in sandbox mode
+        const purchaseResult = await createPurchaseWithValidation({
+          userId: metadata.userId,
+          packageId: metadata.packageId,
+          paymentId: payment_id || `SANDBOX_${Date.now()}`
+        }, {
+          allowMultiple: businessRules.getRule('purchase', 'allowMultipleActivePackages'),
+          skipActiveCheck: false // Don't skip checks even in sandbox
+        });
+        
+        if (!purchaseResult.success) {
+          console.error('Sandbox purchase failed:', purchaseResult.error);
+          return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent(purchaseResult.error)}`);
+        }
+      } catch (error) {
+        console.error('Sandbox purchase error:', error);
       }
+      return res.redirect('/interfaces/success.html');
+    }
+    // ===== SANDBOX BLOCK =====
 
-      // Check if user already has an active package
-      const existingActive = await Purchase.findOne({
-        userId: metadata.userId,
-        expiresAt: { $gt: new Date() },
-        creditsLeft: { $gt: 0 }
-      });
+    // Check multiple status indicators
+    const isApproved = collection_status === 'approved' || status === 'approved';
+    
+    if (payment_id && external_reference && isApproved) {
+      try {
+        const metadata = JSON.parse(decodeURIComponent(external_reference));
+        
+        // Verify payment status with MercadoPago API
+        const payment = await paymentClient.get({ id: payment_id });
+        console.log('Payment verification result:', payment.status);
 
-      if (existingActive) {
-        console.log('User already has active package');
-        return res.redirect('/interfaces/error.html');
+        if (payment.status === 'approved') {
+          const package = await Package.findById(metadata.packageId);
+          if (!package) {
+            console.error('Package not found:', metadata.packageId);
+            return res.redirect('/interfaces/error.html?reason=package_not_found');
+          }
+
+          // Check if purchase already exists for this payment
+          const existingPurchase = await Purchase.findOne({ 
+            mercadoPagoPaymentId: payment_id 
+          });
+          
+          if (existingPurchase) {
+            console.log('Purchase already exists for this payment');
+            return res.redirect('/interfaces/success.html?existing=true');
+          }
+
+          // Use business rules to determine if we should allow multiple packages
+          const allowMultiple = businessRules.getRule('purchase', 'allowMultipleActivePackages');
+          
+          // Create purchase using the helper function
+          const purchaseResult = await createPurchaseWithValidation({
+            userId: metadata.userId,
+            packageId: metadata.packageId,
+            paymentId: payment_id
+          }, {
+            allowMultiple: allowMultiple,
+            skipActiveCheck: businessRules.testing.bypassPurchaseRestrictions
+          });
+
+          if (purchaseResult.success) {
+            console.log('Purchase created successfully:', purchaseResult.purchase._id);
+          } else {
+            console.error('Purchase creation failed:', purchaseResult.error);
+            // Don't fail the redirect - payment was still successful
+          }
+        }
+      } catch (error) {
+        console.error('Error processing payment:', error);
+        // Don't fail the redirect if there's an error processing
+        // User still paid successfully
       }
-
-      // Calculate expiration date
-      const boughtAt = new Date();
-      const expiresAt = new Date(boughtAt);
-      expiresAt.setDate(expiresAt.getDate() + package.validDays);
-
-      // Create purchase record
-      const purchase = await Purchase.create({
-        userId: metadata.userId,
-        packageId: metadata.packageId,
-        boughtAt,
-        expiresAt,
-        creditsLeft: package.creditCount,
-        mercadoPagoPaymentId: payment_id // Store payment ID for reference
-      });
-
-      console.log('Purchase created successfully:', purchase._id);
     }
 
-    // Redirect to success page
+    // Always redirect to success if we got here (payment was approved)
     res.redirect('/interfaces/success.html');
   } catch (error) {
     console.error('Error handling success:', error);
-    res.redirect('/interfaces/error.html');
+    res.redirect('/interfaces/error.html?reason=processing_error');
   }
 };
 
@@ -160,17 +218,112 @@ exports.handlePending = async (req, res) => {
 // Webhook for payment notifications (IPN)
 exports.webhook = async (req, res) => {
   try {
-    const { type, data } = req.body;
+    const { id, type, data } = req.body;
     
-    if (type === 'payment') {
-      // Get payment details from MercadoPago
-      console.log('Payment notification received:', data.id);
-      // You can fetch payment details here if needed
+    console.log('Webhook received:', { id, type, data });
+    
+    // 1. Handle test webhooks 
+    if (id === "123456" || (data && data.id === "123456")) {
+      console.log("✅ Accepted test webhook");
+      return res.status(200).json({ status: "ok", message: "Test webhook accepted" });
     }
-    
+
+    if (type === 'payment' && data && data.id) {
+      console.log(`🟠 Payment webhook received (ID: ${data.id})`);
+      
+      // ===== SANBOX BLOCK =====
+      if (businessRules.payment.environment === 'sandbox') {
+        console.log("🟡 Sandbox mode - Bypassing payment verification");
+        const paymentStatus = 'approved';
+        let metadata; 
+        
+        // Get metadata from query if payment object isn't available
+        if (req.query.external_reference) {
+          metadata = JSON.parse(decodeURIComponent(req.query.external_reference));
+        } else {
+          // Fallback: Create test metadata
+          metadata = {
+            userId: "TEST_USER_ID",
+            packageId: "TEST_PKG_ID"
+          };
+        }
+      } else {
+        // Production: Verify with MercadoPago API
+        const payment = await paymentClient.get({ id: data.id });
+        paymentStatus = payment.status;
+        metadata = JSON.parse(payment.external_reference);
+      }
+      // ===== END OF SANBOX BLOCK =====
+
+      // 2. Verify payment with MercadoPago API
+      const payment = await paymentClient.get({ id: data.id });
+      const paymentStatus = payment.status;
+      console.log(`Payment ${data.id} status: ${paymentStatus}`);
+      
+      // 3. Only process approved payments
+      if (paymentStatus !== 'approved') {
+        return res.status(200).send(`OK (Ignored status: ${paymentStatus})`);
+      }
+
+      // 4. Validate external_reference
+      if (!payment.external_reference) {
+        console.error("🔴 Missing external_reference");
+        return res.status(200).send("OK (Missing external_reference)");
+      }
+
+      let metadata;
+      try {
+        metadata = JSON.parse(payment.external_reference);
+      } catch (e) {
+        console.error("🔴 Invalid external_reference format:", payment.external_reference);
+        return res.status(200).send("OK (Invalid metadata format)");
+      }
+      
+      // 5. Validate required fields
+      if (!metadata.userId || !metadata.packageId) {
+        console.error("🔴 Invalid metadata:", metadata);
+        return res.status(200).send("OK (Invalid metadata)");
+      }
+
+      // 6. Check for duplicate purchases
+      const existingPurchase = await Purchase.findOne({ 
+        mercadoPagoPaymentId: data.id 
+      });
+      
+      if (existingPurchase) {
+        console.log("🟡 Duplicate purchase ignored");
+        return res.status(200).send("OK (Duplicate)");
+      }
+
+      // 7. Verify package exists
+      const package = await Package.findById(metadata.packageId);
+      if (!package) {
+        console.error(`🔴 Package not found: ${metadata.packageId}`);
+        return res.status(200).send("OK (Package not found)");
+      }
+
+      // 8. Create purchase using helper function
+      const purchaseResult = await createPurchaseWithValidation({
+        userId: metadata.userId,
+        packageId: metadata.packageId,
+        paymentId: data.id
+      }, {
+        allowMultiple: businessRules.getRule('purchase', 'allowMultipleActivePackages'),
+        skipActiveCheck: businessRules.testing.bypassPurchaseRestrictions
+      });
+
+      if (purchaseResult.success) {
+        console.log(`🟢 Purchase created: ${purchaseResult.purchase._id}`);
+      } else {
+        console.error(`🔴 Purchase creation failed: ${purchaseResult.error}`);
+      }
+    }
+
+    // Always return 200 for webhooks
     res.status(200).send('OK');
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).send('Error');
+    console.error('🔴 Webhook error:', error);
+    // Still return 200 to prevent retries
+    res.status(200).send('OK (Error processed)');
   }
 };

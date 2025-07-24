@@ -10,7 +10,6 @@ const purchasesSchema = new mongoose.Schema({
     },
     packageId: {
       type: String, // refers to packages._id
-      ref: 'Packages',
       required: true
     },
     boughtAt: {

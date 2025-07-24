@@ -10,6 +10,10 @@ const rateLimit = require('express-rate-limit');
 const https = require('https');
 const fs = require('fs');
 
+require('./schemas/user.model'); // Load User schema
+require('./schemas/purchases.model'); // Load Purchase schema
+require('./schemas/packages.model'); // Load Package schema
+
 // SECURITY
 app.use(helmet({
   contentSecurityPolicy: {
@@ -47,11 +51,37 @@ app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
 
 // CORS CONFIG (deepseek enhanced)
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_PROD_URL 
-    : 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5000',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5000',
+      process.env.FRONTEND_PROD_URL
+    ];
+    
+    // Allow any ngrok URL
+    if (origin.includes('ngrok-free.app') || origin.includes('ngrok.io')) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else if (process.env.NODE_ENV !== 'production') {
+      // In development, allow all origins
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 app.use(cors(corsOptions));
 
@@ -78,6 +108,9 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
   module.exports = mongoose;
+
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
 // STATIC 
   app.use(express.static(path.join(__dirname, 'interfaces')));
@@ -107,7 +140,7 @@ mongoose.connect(process.env.MONGODB_URI)
   app.use('/api/packages', packageRoutes);
   app.use('/api/purchases', purchaseRoutes);
   app.use('/api/reservations', reservationRoutes);
-  app.use('/api/payments', paymentRoutes);
+  app.use('/api/payments', require('./routes/payment.routes'));
 
 
   app.use((err, req, res, next) => { // Basic error handling

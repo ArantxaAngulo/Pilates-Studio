@@ -1,6 +1,26 @@
 // Module for handling all API calls to the backend
+// Dynamically determine API URL based on current location
+function getApiBaseUrl() {
+    const currentHost = window.location.hostname;
+    const currentProtocol = window.location.protocol;
+    
+    // If we're on ngrok, use ngrok URL
+    if (currentHost.includes('ngrok')) {
+        return `${currentProtocol}//${currentHost}/api`;
+    }
+    
+    // If we're on localhost, use localhost
+    if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+        return 'http://localhost:5000/api';
+    }
+    
+    // For production, use your production API URL
+    return '/api'; // Relative URL for same-origin
+}
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = getApiBaseUrl();
+
+console.log('API Base URL:', API_BASE_URL);
 
 // Helper function to get auth token
 function getAuthToken() {
