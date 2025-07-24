@@ -230,7 +230,7 @@
             </div>
 
             <!-- Lunes -->
-            <div id="lunes" class="day-content active">
+            <div id="lunes" class="day-content">
                 <div class="schedule-grid">
                     <div class="time-slot">
                         <div class="class-type">Pilates Reformer</div>
@@ -452,49 +452,34 @@
     </div>
 </footer>
     <script>
-        function showDay(day, fromURL = false) {
-            // Oculta todos los contenidos de días
-            const dayContents = document.querySelectorAll('.day-content');
-            dayContents.forEach(content => {
-                content.classList.remove('active');
-            });
-
-            // Quita clase activa a todas las pestañas
-            const dayTabs = document.querySelectorAll('.day-tab');
-            dayTabs.forEach(tab => {
-                tab.classList.remove('active');
-            });
-
-            // Muestra el contenido del día seleccionado
-            const selectedContent = document.getElementById(day);
-            if (selectedContent) {
-                selectedContent.classList.add('active');
-            }
-
-            // Si se llama desde la URL, también hay que activar la pestaña visualmente
-            if (fromURL) {
-                const matchingTab = document.querySelector(`.day-tab[data-day="${day}"]`);
-                if (matchingTab) {
-                    matchingTab.classList.add('active');
-                }
-            } else {
-                // Si fue por clic, usamos el target del evento
-                event.target.classList.add('active');
-            }
+    // Function to handle URL parameters
+    function handleDayFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        const day = params.get("dia");
+        
+        if (day) {
+            showDay(day);
+        } else {
+            // Default to Monday if no day specified
+            showDay('lunes', document.querySelector('.day-tab[data-day="lunes"]'));
         }
+    }
 
-        function getDiaFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            const dia = params.get("dia");
-            if (dia) {
-                showDay(dia, true); // indicamos que viene desde la URL
-            }
-        }
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up click handlers for tabs
+        document.querySelectorAll('.day-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const day = this.getAttribute('data-day');
+                showDay(day, this);
+            });
+        });
 
-        // Espera a que cargue el DOM
-        window.onload = getDiaFromURL;
+        // Handle day from URL or default
+        handleDayFromURL();
+    });
     </script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="api-service.js"></script>
     <script src="dynamic-navbar.js"></script>
     <script src="data-display.js"></script>

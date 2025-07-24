@@ -161,29 +161,35 @@ function initCalendar() {
     });
 }
 
-function showDay(day, clickedTab) {
-    // Hide all day contents
-    const dayContents = document.querySelectorAll('.day-content');
-    dayContents.forEach(content => {
-        content.classList.remove('active');
-    });
+// Function to show the selected day and highlight the tab
+function showDay(day, clickedTab = null) {
+        // Hide all day contents
+        document.querySelectorAll('.day-content').forEach(content => {
+            content.classList.remove('active');
+        });
 
-    // Remove active class from all tabs
-    const dayTabs = document.querySelectorAll('.day-tab');
-    dayTabs.forEach(tab => {
-        tab.classList.remove('active');
-    });
+        // Remove active class from all tabs
+        document.querySelectorAll('.day-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
 
-    // Show selected day content
-    const selectedDay = document.getElementById(day);
-    if (selectedDay) {
-        selectedDay.classList.add('active');
-    }
+        // Show selected day content
+        const selectedContent = document.getElementById(day);
+        if (selectedContent) {
+            selectedContent.classList.add('active');
+        }
 
-    // Add active class to clicked tab
-    if (clickedTab) {
-        clickedTab.classList.add('active');
-    }
+        // Highlight the correct tab
+        if (clickedTab) {
+            // If called from click event
+            clickedTab.classList.add('active');
+        } else {
+            // If called from URL, find matching tab
+            const matchingTab = document.querySelector(`.day-tab[data-day="${day}"]`);
+            if (matchingTab) {
+                matchingTab.classList.add('active');
+            }
+        }
 }
 
 // ======================
@@ -286,6 +292,16 @@ function initSignUpAnimations() {
 // ======================
 // AUTHENTICATION FUNCTIONS
 // ======================
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+function isStrongPassword(password) {
+    // Mínimo 8 caracteres, al menos una letra mayúscula y un número
+    const re = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+    return re.test(password);
+}
 
 function initAuthForms() {
   // LOGIN FORM HANDLER
@@ -295,6 +311,7 @@ function initAuthForms() {
       
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
+      const rememberMe = document.getElementById('remember').checked;
       
       if (!email || !password) {
         showAlert('Por favor completa todos los campos', 'error');
@@ -313,6 +330,7 @@ function initAuthForms() {
         if (response.ok) {
           localStorage.setItem('token', data.token);
           localStorage.setItem('refreshToken', data.refreshToken);
+          localStorage.setItem('userName', data.user.name);
           showAlert('Inicio de sesión exitoso', 'success');
           setTimeout(() => window.location.href = 'dashboard.html', 1500);
         } else {
@@ -401,9 +419,21 @@ function validateRegistration(form, formData) {
     return false;
   }
 
-  // Check password length
+  // Check password 
   if (formData.password.length < 8) {
     showAlert('La contraseña debe tener al menos 8 caracteres.', 'error');
+    return false;
+  }
+
+  // Check password 
+  if (!isStrongPassword(formData.password)) {
+        showAlert('La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula y un número.', 'error');
+        return false;
+    }
+
+  // Check email format
+  if (!validateEmail(formData.email)) {
+    showAlert('Por favor ingresa un email válido.', 'error');
     return false;
   }
 
