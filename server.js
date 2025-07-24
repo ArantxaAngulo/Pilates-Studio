@@ -60,23 +60,25 @@ const corsOptions = {
       'http://localhost:5000',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:5000',
-      process.env.FRONTEND_PROD_URL
+      process.env.FRONTEND_PROD_URL,
+      'https://pilates-studio-test.onrender.com'
     ];
     
     // Allow any ngrok URL
-    if (origin.includes('ngrok-free.app') || origin.includes('ngrok.io')) {
+    if (origin.includes('ngrok') || origin.includes('localhost')) {
       return callback(null, true);
     }
     
     // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
-    } else if (process.env.NODE_ENV !== 'production') {
-      // In development, allow all origins
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    } 
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('Blocked CORS origin:', origin);
+      return callback(new Error('Not allowed by CORS'));
     }
+
+    return callback(null, true);
   },
   credentials: true,
   optionsSuccessStatus: 200,

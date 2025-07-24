@@ -318,7 +318,7 @@ function initAuthForms() {
       }
       
       try {
-        const response = await fetch('${API_BASE_URL}/api/users/login', {
+        const response = await fetch(`${API_BASE_URL}/api/users/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -361,7 +361,7 @@ function initAuthForms() {
       if (!validateRegistration(form, formData)) return;
 
       try {
-        const response = await fetch('${API_BASE_URL}/api/users/register', {
+        const response = await fetch(`${API_BASE_URL}/api/users/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
