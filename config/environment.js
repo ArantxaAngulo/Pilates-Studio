@@ -23,7 +23,7 @@ module.exports = {
     successUrl: `${isDevelopment ? localUrl : renderUrl}/api/payments/success`,
     failureUrl: `${isDevelopment ? localUrl : renderUrl}/api/payments/failure`,
     pendingUrl: `${isDevelopment ? localUrl : renderUrl}/api/payments/pending`,
-    webhookUrl: `$${isDevelopment ? localUrl : renderUrl}/api/payments/webhook`,
+    webhookUrl: `${isDevelopment ? localUrl : renderUrl}/api/payments/webhook`,
   },
 
   database: {
