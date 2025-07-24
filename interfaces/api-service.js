@@ -4,18 +4,18 @@ function getApiBaseUrl() {
     const currentHost = window.location.hostname;
     const currentProtocol = window.location.protocol;
     
-    // If we're on ngrok, use ngrok URL
+    /* If we're on ngrok, use ngrok URL
     if (currentHost.includes('ngrok')) {
         return `${currentProtocol}//${currentHost}/api`;
-    }
+    }*/
     
     // If we're on localhost, use localhost
     if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
         return 'http://localhost:5000/api';
     }
     
-    // For production, use your production API URL
-    return '/api'; // Relative URL for same-origin
+    // For production, render URL
+    return 'https://pilates-studio-test.onrender.com/api';
 }
 
 const API_BASE_URL = getApiBaseUrl();
