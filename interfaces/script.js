@@ -1,5 +1,3 @@
-const API_BASE_URL = window.API_BASE_URL || 'http://localhost:5000/api';
-
 // ======================
 // DOM UTILITIES
 // ======================
@@ -307,81 +305,71 @@ function isStrongPassword(password) {
 
 function initAuthForms() {
   // LOGIN FORM HANDLER
-  if (document.getElementById('loginForm')) {
+  // Replace the login form handler with:
+if (document.getElementById('loginForm')) {
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      
-      if (!email || !password) {
-        showAlert('Por favor completa todos los campos', 'error');
-        return;
-      }
-      
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/users/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-
-        const data = await response.json();
+        e.preventDefault();
         
-        if (response.ok) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('refreshToken', data.refreshToken);
-          localStorage.setItem('userName', data.user.name);
-          showAlert('Inicio de sesión exitoso', 'success');
-          setTimeout(() => window.location.href = 'dashboard.html', 1500);
-        } else {
-          showAlert(data.error || 'Error de autenticación', 'error');
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        if (!email || !password) {
+            showAlert('Por favor completa todos los campos', 'error');
+            return;
         }
-      } catch (err) {
-        showAlert('Error de conexión con el servidor', 'error');
-        console.error('Login error:', err);
-      }
+        
+        try {
+            const response = await apiService.users.login(email, password);
+            
+            if (response.success) {
+                localStorage.setItem('token', response.token);
+                localStorage.setItem('refreshToken', response.refreshToken);
+                localStorage.setItem('userName', response.user.name);
+                showAlert('Inicio de sesión exitoso', 'success');
+                setTimeout(() => window.location.href = 'dashboard.html', 1500);
+            } else {
+                showAlert(response.error || 'Error de autenticación', 'error');
+            }
+        } catch (err) {
+            showAlert('Error de conexión con el servidor', 'error');
+            console.error('Login error:', err);
+        }
     });
-  }
+}
 
   // REGISTRATION FORM HANDLER
-  if (document.getElementById('registroForm')) {
+if (document.getElementById('registroForm')) {
     const form = document.getElementById('registroForm');
     
     form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      // Get form data
-      const formData = {
-        name: `${form.querySelector('#nombre').value} ${form.querySelector('#apellido-paterno').value}`,
-        email: form.querySelector('#email').value,
-        password: form.querySelector('#password').value,
-        dob: form.querySelector('#fecha-nac').value
-      };
-
-      // Client-side validation
-      if (!validateRegistration(form, formData)) return;
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/users/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData)
-        });
-
-        const data = await response.json();
+        e.preventDefault();
         
-        if (response.ok) {
-          localStorage.setItem('token', data.token);
-          showAlert('¡Registro exitoso! Bienvenido a Shanti Pilates.', 'success');
-          setTimeout(() => window.location.href = 'dashboard.html', 1500);
-        } else {
-          showAlert(data.error || 'Error en el registro', 'error');
+        // Get form data
+        const formData = {
+            name: `${form.querySelector('#nombre').value} ${form.querySelector('#apellido-paterno').value}`,
+            email: form.querySelector('#email').value,
+            password: form.querySelector('#password').value,
+            dob: form.querySelector('#fecha-nac').value
+        };
+
+        // Client-side validation (keep existing validation)
+        if (!validateRegistration(form, formData)) return;
+
+        try {
+            // Use apiService instead of direct fetch
+            const response = await apiService.users.register(formData);
+            
+            if (response.success) {
+                localStorage.setItem('token', response.token);
+                showAlert('¡Registro exitoso! Bienvenido a Shanti Pilates.', 'success');
+                setTimeout(() => window.location.href = 'dashboard.html', 1500);
+            } else {
+                showAlert(response.error || 'Error en el registro', 'error');
+            }
+        } catch (err) {
+            showAlert('Error de conexión con el servidor', 'error');
+            console.error('Registration error:', err);
         }
-      } catch (err) {
-        showAlert('Error de conexión con el servidor', 'error');
-        console.error('Registration error:', err);
-      }
     });
 
     // Real-time password validation
