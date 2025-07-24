@@ -311,7 +311,6 @@ function initAuthForms() {
       
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
-      const rememberMe = document.getElementById('remember').checked;
       
       if (!email || !password) {
         showAlert('Por favor completa todos los campos', 'error');
