@@ -348,6 +348,8 @@
     <script src="data-display.js"></script>
     <script src="script.js"></script>
     <script>
+    // init url
+    const API_BASE_URL = window.API_BASE_URL;
     // Initialize MercadoPago
     const mp = new MercadoPago('APP_USR-b0be035f-37fb-4a36-b174-c86393b3b2f2', {
         locale: 'es-MX'
@@ -465,7 +467,7 @@
 
         // First, check if user already has an active package
         try {
-            const activePackageResponse = await fetch(`http://localhost:5000/api/purchases/user/${userId}/active`, {
+            const activePackageResponse = await fetch(`${API_BASE_URL}/api/purchases/user/${userId}/active`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -561,7 +563,7 @@
             } */
 
             // Create MercadoPago preference
-            const response = await fetch('http://localhost:5000/api/payments/create_preference', {
+            const response = await fetch(`${API_BASE_URL}/api/payments/create_preference`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
