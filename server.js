@@ -151,29 +151,36 @@ mongoose.connect(process.env.MONGODB_URI)
   // START SERVER ON PORT 5000
   const PORT = process.env.PORT || 5000;
 
-  // HTTPS CERTS (dev, not for profuction)
+  /* HTTPS CERTS (dev, not for profuction)
   const httpsOptions = {
     key: fs.readFileSync('./certs/localhost-key.pem'),
     cert: fs.readFileSync('./certs/localhost.pem')
-};
+}; */
 
   // PRODUCTION AND DEV SERVER SETUP (deepseek enhanced)
-  if (process.env.NODE_ENV === 'production') {
-  const options = {
-    key: fs.readFileSync(process.env.SSL_KEY_PATH),
-    cert: fs.readFileSync(process.env.SSL_CERT_PATH),
-    minVersion: 'TLSv1.2' // Enforce modern TLS
-  };
-  
-  https.createServer(httpsOptions, app).listen(443, () => {
-    console.log('HTTPS server running on port 443');
+if (process.env.NODE_ENV === 'production') {
+  app.listen(PORT, () => {
+    console.log(`✅ Production server running on port ${PORT}`);
   });
-  } else {
-    app.listen(PORT, () => {
-      console.log(`HTTP server running on port ${PORT}`);
-      console.log(`HTTP server running on http://localhost:${PORT}`);
+} else {
+  // Local dev: optionally enable HTTPS
+  try {
+    const httpsOptions = {
+      key: fs.readFileSync('./certs/localhost-key.pem'),
+      cert: fs.readFileSync('./certs/localhost.pem'),
+    };
+
+    https.createServer(httpsOptions, app).listen(PORT, () => {
+      console.log(`🔒 Local HTTPS server running on https://localhost:${PORT}`);
     });
-  } 
+  } catch (err) {
+    console.warn('No HTTPS certs found. Falling back to HTTP for local dev.');
+    app.listen(PORT, () => {
+      console.log(`🌐 Local HTTP server running on http://localhost:${PORT}`);
+    });
+  }
+}
+
 
   // debug endpoint test
   app.get('/api/ping', (req, res) => {
