@@ -209,7 +209,11 @@ exports.createUser = async (req, res) => {
         const user = await User.create({ name, email, password, dob });
         
         // Generate JWT tokens
-        const jwtSecret = process.env.JWT_SECRET || '123xyz';
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) { //debug
+            console.error('JWT_SECRET is not configured');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
         
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role || 'user' },

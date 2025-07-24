@@ -305,7 +305,6 @@ function isStrongPassword(password) {
 
 function initAuthForms() {
   // LOGIN FORM HANDLER
-  // Replace the login form handler with:
 if (document.getElementById('loginForm')) {
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -321,7 +320,7 @@ if (document.getElementById('loginForm')) {
         try {
             const response = await apiService.users.login(email, password);
             
-            if (response.success) {
+            if (response.token) {
                 localStorage.setItem('token', response.token);
                 localStorage.setItem('refreshToken', response.refreshToken);
                 localStorage.setItem('userName', response.user.name);
