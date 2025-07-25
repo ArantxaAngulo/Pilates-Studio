@@ -62,6 +62,60 @@ async function apiCall(endpoint, options = {}) {
 
 // API Service Object
 const apiService = {
+    // Base configuration
+    baseURL: 'http://localhost:5000/api',
+    
+    // Helper function for API calls
+    async apiCall(endpoint, options = {}) {
+        const url = `${this.baseURL}${endpoint}`;
+        
+        // Always include auth header if token exists
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+        
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const config = {
+            ...options,
+            headers
+        };
+        
+        console.log('API call to:', url);
+        console.log('With config:', config);
+        
+        try {
+            const response = await fetch(url, config);
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                console.error('API call failed:', response.status, errorData);
+                
+                if (response.status === 401 || response.status === 403) {
+                    // Token might be expired
+                    const isLoginPage = window.location.pathname.includes('login');
+                    if (!isLoginPage) {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('refreshToken');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                }
+                
+                throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('API call error:', error);
+            throw error;
+        }
+    },
+
     // PACKAGES
     packages: {
         getAll: async (params = {}) => {
@@ -147,15 +201,21 @@ const apiService = {
             const queryString = new URLSearchParams(params).toString();
             return apiCall(`/purchases/user/${userId}${queryString ? '?' + queryString : ''}`);
         },
-        getActivePackage: async (userId) => {
-            return apiCall(`/purchases/user/${userId}/active`);
+        getActivePackage: async function(userId) {
+            return apiService.apiCall(`/purchases/user/${userId}/active`);
+        },
+        createSingleClass: async (purchaseData) => {
+            return apiCall('/purchases/single-class', {
+                method: 'POST',
+                body: JSON.stringify(purchaseData)
+            });
         }
     },
 
     // RESERVATIONS
     reservations: {
-        create: async (reservationData) => {
-            return apiCall('/reservations', {
+        create: async function(reservationData) {
+            return apiService.apiCall('/reservations', {
                 method: 'POST',
                 body: JSON.stringify(reservationData)
             });

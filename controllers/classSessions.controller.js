@@ -1,51 +1,139 @@
 const ClassSession = require('../schemas/classSessions.model');
 const ClassType = require('../schemas/classTypes.model');
 const Instructor = require('../schemas/instructors.model');
+const mongoose = require('mongoose');
 
 // GET ALL CLASS SESSIONS
 exports.getAllClassSessions = async (req, res) => {
     try {
-        const { date, classTypeId, instructorId, page = 1, limit = 10 } = req.query;
+        const { date, classTypeId, instructorId, available, startDate, endDate } = req.query;
         
-        // Build filter object
         let filter = {};
         
+        // Filter by specific date
         if (date) {
-            const startDate = new Date(date);
-            const endDate = new Date(date);
-            endDate.setDate(endDate.getDate() + 1);
-            filter.startsAt = { $gte: startDate, $lt: endDate };
+            const searchDate = new Date(date);
+            const nextDay = new Date(searchDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            
+            filter.startsAt = {
+                $gte: searchDate,
+                $lt: nextDay
+            };
         }
         
+        // Filter by date range
+        if (startDate || endDate) {
+            filter.startsAt = {};
+            if (startDate) filter.startsAt.$gte = new Date(startDate);
+            if (endDate) filter.startsAt.$lte = new Date(endDate);
+        }
+        
+        // Filter by class type
         if (classTypeId) {
             filter.classTypeId = classTypeId;
         }
         
+        // Filter by instructor
         if (instructorId) {
             filter.instructorId = instructorId;
         }
-
-        const skip = (page - 1) * limit;
         
-        const classSessions = await ClassSession.find(filter)
+        // Filter only available sessions (not fully booked)
+        if (available === 'true') {
+            filter.$expr = { $lt: ['$reservedCount', '$capacity'] };
+        }
+
+        const sessions = await ClassSession.find(filter)
             .populate('classTypeId', 'name description level')
             .populate('instructorId', 'name bio')
-            .sort({ startsAt: 1 })
-            .skip(skip)
-            .limit(parseInt(limit));
-
-        const total = await ClassSession.countDocuments(filter);
+            .sort({ startsAt: 1 });
 
         res.json({
             status: 'success',
             data: {
-                classSessions,
-                pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
-                    total,
-                    pages: Math.ceil(total / limit)
-                }
+                classSessions: sessions,
+                count: sessions.length
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// GET AVAILABLE SESSIONS FOR BOOKING
+exports.getAvailableSessions = async (req, res) => {
+    try {
+        const { date, month, year, classTypeId } = req.query;
+        
+        let filter = {
+            startsAt: { $gte: new Date() }, // Only future sessions
+            $expr: { $lt: ['$reservedCount', '$capacity'] } // Not fully booked
+        };
+        
+        // Filter by specific date
+        if (date) {
+            const searchDate = new Date(date);
+            const nextDay = new Date(searchDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            
+            filter.startsAt = {
+                $gte: searchDate,
+                $lt: nextDay
+            };
+        }
+        
+        // Filter by month/year
+        if (month && year) {
+            const startOfMonth = new Date(year, month - 1, 1);
+            const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+            
+            filter.startsAt = {
+                $gte: startOfMonth,
+                $lte: endOfMonth
+            };
+        }
+        
+        // Filter by class type
+        if (classTypeId) {
+            filter.classTypeId = classTypeId;
+        }
+
+        const sessions = await ClassSession.find(filter)
+            .populate('classTypeId', 'name description level')
+            .populate('instructorId', 'name bio')
+            .sort({ startsAt: 1 });
+
+        // Group sessions by date for easier frontend consumption
+        const sessionsByDate = {};
+        
+        sessions.forEach(session => {
+            const dateKey = new Date(session.startsAt).toISOString().split('T')[0];
+            if (!sessionsByDate[dateKey]) {
+                sessionsByDate[dateKey] = [];
+            }
+            sessionsByDate[dateKey].push({
+                _id: session._id,
+                startsAt: session.startsAt,
+                capacity: session.capacity,
+                reservedCount: session.reservedCount,
+                availableSpots: session.capacity - session.reservedCount,
+                classType: session.classTypeId,
+                instructor: session.instructorId,
+                time: new Date(session.startsAt).toLocaleTimeString('es-MX', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                })
+            });
+        });
+
+        res.json({
+            status: 'success',
+            data: {
+                availableSessions: sessions,
+                sessionsByDate,
+                count: sessions.length
             }
         });
     } catch (err) {
@@ -56,24 +144,30 @@ exports.getAllClassSessions = async (req, res) => {
 // GET CLASS SESSION BY ID
 exports.getClassSessionById = async (req, res) => {
     try {
-        const classSession = await ClassSession.findById(req.params.id)
+        const session = await ClassSession.findById(req.params.id)
             .populate('classTypeId', 'name description level defaultCapacity')
             .populate('instructorId', 'name bio certifications profilePictureUrl');
             
-        if (!classSession) {
+        if (!session) {
             return res.status(404).json({ error: 'Class session not found' });
         }
         
+        // Add computed fields
+        const sessionData = session.toObject();
+        sessionData.availableSpots = session.capacity - session.reservedCount;
+        sessionData.isFull = session.reservedCount >= session.capacity;
+        sessionData.isPast = session.startsAt < new Date();
+        
         res.json({
             status: 'success',
-            data: { classSession }
+            data: { classSession: sessionData }
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
-// CREATE NEW CLASS SESSION
+// CREATE NEW CLASS SESSION (Admin only)
 exports.createClassSession = async (req, res) => {
     try {
         const { classTypeId, startsAt, capacity, instructorId } = req.body;
@@ -103,35 +197,32 @@ exports.createClassSession = async (req, res) => {
             }
         }
 
-        // Check for scheduling conflicts (same instructor, overlapping time)
-        if (instructorId) {
-            const sessionStart = new Date(startsAt);
-            const sessionEnd = new Date(sessionStart.getTime() + 60 * 60 * 1000); // Assuming 1-hour sessions
-            
-            const conflictingSession = await ClassSession.findOne({
-                instructorId,
-                startsAt: {
-                    $gte: sessionStart,
-                    $lt: sessionEnd
-                }
-            });
-
-            if (conflictingSession) {
-                return res.status(400).json({ 
-                    error: 'Instructor has a conflicting session at this time' 
-                });
+        // Check for conflicting sessions (same time slot)
+        const sessionDate = new Date(startsAt);
+        const sessionEndTime = new Date(sessionDate.getTime() + 60 * 60 * 1000); // 1 hour duration
+        
+        const conflictingSession = await ClassSession.findOne({
+            startsAt: {
+                $gte: sessionDate,
+                $lt: sessionEndTime
             }
-        }
-
-        const classSession = await ClassSession.create({
-            classTypeId,
-            startsAt,
-            capacity: capacity || classType.defaultCapacity,
-            instructorId,
-            reservedCount: 0
         });
 
-        const populatedSession = await ClassSession.findById(classSession._id)
+        if (conflictingSession) {
+            return res.status(400).json({ 
+                error: 'A class session already exists at this time slot' 
+            });
+        }
+
+        const session = await ClassSession.create({
+            classTypeId,
+            startsAt: sessionDate,
+            capacity: capacity || classType.defaultCapacity,
+            reservedCount: 0,
+            instructorId
+        });
+
+        const populatedSession = await ClassSession.findById(session._id)
             .populate('classTypeId', 'name description level')
             .populate('instructorId', 'name bio');
 
@@ -154,12 +245,25 @@ exports.createClassSession = async (req, res) => {
     }
 };
 
-// UPDATE CLASS SESSION
+// UPDATE CLASS SESSION (Admin only)
 exports.updateClassSession = async (req, res) => {
     try {
-        const { instructorId, startsAt } = req.body;
+        const { capacity, instructorId } = req.body;
+        const sessionId = req.params.id;
 
-        // Verify instructor exists if updating
+        const session = await ClassSession.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ error: 'Class session not found' });
+        }
+
+        // Prevent reducing capacity below current reservations
+        if (capacity && capacity < session.reservedCount) {
+            return res.status(400).json({ 
+                error: `Cannot reduce capacity below current reservations (${session.reservedCount})` 
+            });
+        }
+
+        // Verify instructor exists if being updated
         if (instructorId) {
             const instructor = await Instructor.findById(instructorId);
             if (!instructor) {
@@ -167,123 +271,57 @@ exports.updateClassSession = async (req, res) => {
             }
         }
 
-        // Check for scheduling conflicts if updating instructor or time
-        if (instructorId && startsAt) {
-            const sessionStart = new Date(startsAt);
-            const sessionEnd = new Date(sessionStart.getTime() + 60 * 60 * 1000);
-            
-            const conflictingSession = await ClassSession.findOne({
-                _id: { $ne: req.params.id }, // Exclude current session
-                instructorId,
-                startsAt: {
-                    $gte: sessionStart,
-                    $lt: sessionEnd
-                }
-            });
-
-            if (conflictingSession) {
-                return res.status(400).json({ 
-                    error: 'Instructor has a conflicting session at this time' 
-                });
-            }
-        }
-
-        const classSession = await ClassSession.findByIdAndUpdate(
-            req.params.id, 
-            req.body, 
+        const updatedSession = await ClassSession.findByIdAndUpdate(
+            sessionId,
+            { capacity, instructorId },
             { new: true, runValidators: true }
         )
         .populate('classTypeId', 'name description level')
         .populate('instructorId', 'name bio');
 
-        if (!classSession) {
-            return res.status(404).json({ error: 'Class session not found' });
-        }
-
         res.json({
             status: 'success',
-            data: { classSession }
+            data: { classSession: updatedSession }
         });
     } catch (err) {
-        if (err.name === 'ValidationError') {
-            const errors = {};
-            Object.keys(err.errors).forEach(key => {
-                errors[key] = err.errors[key].message;
-            });
-            return res.status(400).json({ 
-                error: 'Validation failed',
-                details: errors
-            });
-        }
         res.status(500).json({ error: err.message });
     }
 };
 
-// DELETE CLASS SESSION
+// DELETE CLASS SESSION (Admin only)
 exports.deleteClassSession = async (req, res) => {
+    const mongooseSession = await mongoose.startSession();
+    mongooseSession.startTransaction();
+    
     try {
-        const classSession = await ClassSession.findById(req.params.id);
+        const sessionId = req.params.id;
         
+        const classSession = await ClassSession.findById(sessionId).session(mongooseSession);
         if (!classSession) {
+            await mongooseSession.abortTransaction();
             return res.status(404).json({ error: 'Class session not found' });
         }
 
-        // Check if session has reservations
+        // Check if there are reservations
         if (classSession.reservedCount > 0) {
+            await mongooseSession.abortTransaction();
             return res.status(400).json({ 
-                error: 'Cannot delete class session with existing reservations' 
+                error: 'Cannot delete session with existing reservations. Cancel all reservations first.' 
             });
         }
 
-        await ClassSession.findByIdAndDelete(req.params.id);
+        await ClassSession.findByIdAndDelete(sessionId).session(mongooseSession);
+        
+        await mongooseSession.commitTransaction();
 
         res.json({
             status: 'success',
             message: 'Class session deleted successfully'
         });
     } catch (err) {
+        await mongooseSession.abortTransaction();
         res.status(500).json({ error: err.message });
-    }
-};
-
-// GET AVAILABLE SESSIONS (for booking)
-exports.getAvailableSessions = async (req, res) => {
-    try {
-        const { date, classTypeId } = req.query;
-        
-        let filter = {
-            startsAt: { $gte: new Date() } // Only future sessions
-        };
-        
-        if (date) {
-            const startDate = new Date(date);
-            const endDate = new Date(date);
-            endDate.setDate(endDate.getDate() + 1);
-            filter.startsAt = { $gte: startDate, $lt: endDate };
-        }
-        
-        if (classTypeId) {
-            filter.classTypeId = classTypeId;
-        }
-
-        const availableSessions = await ClassSession.find(filter)
-            .populate('classTypeId', 'name description level')
-            .populate('instructorId', 'name bio')
-            .sort({ startsAt: 1 });
-
-        // Filter sessions with available spots
-        const sessionsWithAvailability = availableSessions.filter(session => 
-            session.reservedCount < session.capacity
-        );
-
-        res.json({
-            status: 'success',
-            data: { 
-                availableSessions: sessionsWithAvailability,
-                count: sessionsWithAvailability.length
-            }
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    } finally {
+        mongooseSession.endSession();
     }
 };

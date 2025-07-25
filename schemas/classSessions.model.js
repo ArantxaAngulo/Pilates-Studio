@@ -3,8 +3,8 @@ const { Schema, model, Types } = mongoose;
 
 const classSessionsSchema = new mongoose.Schema({
     classTypeId: {
-      type: Types.ObjectId,
-      ref: 'classType',
+      type: String,
+      ref: 'ClassType',
       required: true
     },
     startsAt: {

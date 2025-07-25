@@ -10,7 +10,7 @@ const rateLimit = require('express-rate-limit');
 const https = require('https');
 const fs = require('fs');
 
-require('./schemas/user.model'); // Load User schema
+const User = require('./schemas/user.model'); // Load User schema
 require('./schemas/purchases.model'); // Load Purchase schema
 require('./schemas/packages.model'); // Load Package schema
 

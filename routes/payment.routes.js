@@ -4,6 +4,8 @@ const paymentController = require('../controllers/payment.controller');
 
 // Create payment preference
 router.post('/create_preference', paymentController.createPreference);
+// Create sinle class payment preference
+router.post('/create_single_class_preference', paymentController.createSingleClassPreference);
 
 // Handle payment callbacks
 router.get('/success', paymentController.handleSuccess);
