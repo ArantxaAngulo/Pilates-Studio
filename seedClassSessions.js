@@ -88,7 +88,7 @@ async function generateSessionsForMonth(startDate, classTypes, instructors) {
                 sessions.push({
                     classTypeId: classType._id,
                     startsAt: sessionDate,
-                    capacity: capacity,
+                    capacity: 10,
                     reservedCount: 0, // Start with no reservations
                     instructorId: instructor._id
                 });

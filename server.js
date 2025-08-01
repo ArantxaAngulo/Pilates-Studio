@@ -141,6 +141,7 @@ mongoose.connect(process.env.MONGODB_URI)
   app.use('/api/purchases', purchaseRoutes);
   app.use('/api/reservations', reservationRoutes);
   app.use('/api/payments', require('./routes/payment.routes'));
+  app.use('/api/admin', require('./routes/admin.routes'));
 
 
   app.use((err, req, res, next) => { // Basic error handling

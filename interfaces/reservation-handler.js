@@ -98,6 +98,34 @@ async function initializeCalendar() {
     
     generateCalendarDays();
     await loadMonthSessions();
+    
+    // DON'T automatically select today or any date
+    // Remove any pre-selected dates
+    document.querySelectorAll('.calendar-day.selected').forEach(day => {
+        day.classList.remove('selected');
+    });
+    
+    // Clear time slots
+    const timeSlotsGrid = document.querySelector('.time-slots-grid');
+    if (timeSlotsGrid) {
+        timeSlotsGrid.innerHTML = '<p style="color: #7d666698;">Selecciona una fecha para ver horarios</p>';
+    }
+    
+    // Reset class info to default state
+    const classDate = document.querySelector('.class-date');
+    if (classDate) {
+        classDate.textContent = 'Selecciona una fecha';
+    }
+    
+    const classCapacity = document.querySelector('.class-capacity');
+    if (classCapacity) {
+        classCapacity.textContent = '--/-- 👤';
+    }
+    
+    const classDetails = document.querySelector('.class-details');
+    if (classDetails) {
+        classDetails.textContent = 'Selecciona un horario para ver detalles';
+    }
 }
 
 // Generate calendar days
@@ -139,9 +167,11 @@ function generateCalendarDays() {
             }
         }
         
+        // Highlight today but don't select it
         if (currentDate.getTime() === today.getTime()) {
             dayElement.classList.add('today');
         }
+        
         calendarGrid.appendChild(dayElement);
     }
 }
@@ -199,8 +229,18 @@ async function selectDate(date) {
 function updateClassInfoDisplay(date) {
     const classDate = document.querySelector('.class-date');
     if (classDate) {
-        const options = { day: 'numeric', month: 'long' };
-        classDate.textContent = date.toLocaleDateString('es-MX', options);
+        if (date) {
+            const options = { day: 'numeric', month: 'long' };
+            classDate.textContent = date.toLocaleDateString('es-MX', options);
+        } else {
+            classDate.textContent = 'Selecciona una fecha';
+        }
+    }
+    
+    // Update capacity to show default of 10 when no session selected
+    const classCapacity = document.querySelector('.class-capacity');
+    if (classCapacity && !selectedSession) {
+        classCapacity.textContent = '--/10 👤';
     }
 }
 
@@ -261,7 +301,10 @@ function updateSessionDetails() {
     
     const classCapacity = document.querySelector('.class-capacity');
     if (classCapacity) {
-        classCapacity.textContent = `${selectedSession.reservedCount}/${selectedSession.capacity} 👤`;
+        // Default capacity is 10 for all classes
+        const capacity = selectedSession.capacity || 10;
+        const reservedCount = selectedSession.reservedCount || 0;
+        classCapacity.textContent = `${reservedCount}/${capacity} 👤`;
     }
     
     const classDate = document.querySelector('.class-date');
@@ -332,6 +375,7 @@ async function changeMonth(direction) {
         return;
     }
     
+    // Clear selections when changing months
     selectedDate = null;
     selectedSession = null;
     
