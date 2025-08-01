@@ -66,160 +66,173 @@ exports.getAllReservations = async (req, res) => {
     }
 };
 
-// GET RESERVATION BY ID
-exports.getReservationById = async (req, res) => {
-    try {
-        const reservation = await Reservation.findById(req.params.id)
-            .populate('userId', 'name email dob')
-            .populate({
-                path: 'sessionId',
-                populate: {
-                    path: 'classTypeId instructorId',
-                    select: 'name description level defaultCapacity name bio certifications'
+const createReservationWithRetry = async (req, res, maxRetries = 3) => {
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+        try {
+            return await createReservationInternal(req, res);
+        } catch (error) {
+            if (error.message.includes('Write conflict') && retries < maxRetries - 1) {
+                retries++;
+                console.log(`Retrying reservation creation, attempt ${retries + 1}`);
+                await new Promise(resolve => setTimeout(resolve, 100 * retries)); // Exponential backoff
+            } else {
+                console.error('Error creating reservation:', error);
+                if (!res.headersSent) {
+                    res.status(500).json({ error: error.message });
                 }
-            })
-            .populate('purchaseId', 'packageId creditsLeft expiresAt boughtAt');
-            
-        if (!reservation) {
-            return res.status(404).json({ error: 'Reservation not found' });
+                throw error;
+            }
         }
-        
-        res.json({
-            status: 'success',
-            data: { reservation }
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
     }
 };
 
-// CREATE NEW RESERVATION
+// Updated createReservation function for the backend
 exports.createReservation = async (req, res) => {
+    try {
+        await createReservationWithRetry(req, res);
+    } catch (error) {
+        // Error already logged and response sent in createReservationWithRetry.
+    }
+};
+
+const createReservationInternal = async (req, res) => {
     const session = await mongoose.startSession();
-    session.startTransaction();
     
     try {
-        const { userId, sessionId, purchaseId } = req.body;
+        const result = await session.withTransaction(async () => {
+            const { userId, sessionId, purchaseId, paymentMethod } = req.body;
 
-        // Validate required fields
-        if (!userId || !sessionId || !purchaseId) {
-            return res.status(400).json({ 
-                error: 'Validation failed',
-                details: {
-                    userId: !userId ? 'User ID is required' : undefined,
-                    sessionId: !sessionId ? 'Session ID is required' : undefined,
-                    purchaseId: !purchaseId ? 'Purchase ID is required' : undefined
+            if (!userId || !sessionId || !paymentMethod) {
+                throw new Error('userId, sessionId, and paymentMethod are required');
+            }
+
+            const classSession = await ClassSession.findById(sessionId).session(session);
+            if (!classSession) {
+                throw new Error('Class session not found');
+            }
+            if (classSession.reservedCount >= classSession.capacity) {
+                throw new Error('Class session is full');
+            }
+            if (classSession.startsAt <= new Date()) {
+                throw new Error('Cannot book past or ongoing sessions');
+            }
+
+            // For package reservations: Check for existing completed reservation
+            if (paymentMethod === 'package') {
+                const existingReservation = await Reservation.findOne({ userId, sessionId, paymentStatus: 'completed' }).session(session);
+                if (existingReservation) {
+                    throw new Error('User already has a reservation for this session');
                 }
-            });
-        }
+            }
 
-        // Check if class session exists and has available spots
-        const classSession = await ClassSession.findById(sessionId).session(session);
-        if (!classSession) {
-            await session.abortTransaction();
-            return res.status(404).json({ error: 'Class session not found' });
-        }
 
-        if (classSession.reservedCount >= classSession.capacity) {
-            await session.abortTransaction();
-            return res.status(400).json({ error: 'Class session is full' });
-        }
+            let newReservationDoc;
 
-        // Check if session is in the future
-        if (classSession.startsAt <= new Date()) {
-            await session.abortTransaction();
-            return res.status(400).json({ error: 'Cannot book past or ongoing sessions' });
-        }
-
-        // Check if user already has a reservation for this session
-        const existingReservation = await Reservation.findOne({
-            userId,
-            sessionId
-        }).session(session);
-
-        if (existingReservation) {
-            await session.abortTransaction();
-            return res.status(400).json({ error: 'User already has a reservation for this session' });
-        }
-
-        // Verify purchase exists and has credits
-        const purchase = await Purchase.findById(purchaseId).session(session);
-        if (!purchase) {
-            await session.abortTransaction();
-            return res.status(404).json({ error: 'Purchase not found' });
-        }
-
-        if (purchase.userId.toString() !== userId) {
-            await session.abortTransaction();
-            return res.status(403).json({ error: 'Purchase does not belong to this user' });
-        }
-
-        if (purchase.creditsLeft <= 0) {
-            await session.abortTransaction();
-            return res.status(400).json({ error: 'No credits remaining in this package' });
-        }
-
-        if (purchase.expiresAt <= new Date()) {
-            await session.abortTransaction();
-            return res.status(400).json({ error: 'Package has expired' });
-        }
-
-        // Create reservation
-        const reservation = await Reservation.create([{
-            userId,
-            sessionId,
-            purchaseId,
-            reservedAt: new Date()
-        }], { session });
-
-        // Decrease credits and increase reserved count
-        await Purchase.findByIdAndUpdate(
-            purchaseId,
-            { $inc: { creditsLeft: -1 } },
-            { session }
-        );
-
-        await ClassSession.findByIdAndUpdate(
-            sessionId,
-            { $inc: { reservedCount: 1 } },
-            { session }
-        );
-
-        await session.commitTransaction();
-
-        // Get populated reservation for response
-        const populatedReservation = await Reservation.findById(reservation[0]._id)
-            .populate('userId', 'name email')
-            .populate({
-                path: 'sessionId',
-                populate: {
-                    path: 'classTypeId instructorId',
-                    select: 'name description level name bio'
+            if (paymentMethod === 'package') {
+                if (!purchaseId) {
+                    throw new Error('purchaseId is required for package reservations');
                 }
-            })
-            .populate('purchaseId', 'packageId creditsLeft expiresAt');
+                const purchase = await Purchase.findById(purchaseId).session(session);
+                if (!purchase || purchase.userId.toString() !== userId) {
+                    throw new Error('Valid purchase not found for this user');
+                }
+                if (purchase.creditsLeft <= 0) {
+                    throw new Error('No credits remaining in this package');
+                }
+                if (purchase.expiresAt <= new Date()) {
+                    throw new Error('Package has expired');
+                }
 
-        res.status(201).json({
-            status: 'success',
-            data: { reservation: populatedReservation }
+                newReservationDoc = new Reservation({
+                    userId,
+                    sessionId,
+                    purchaseId,
+                    paymentStatus: 'completed',
+                    paymentMethod: 'package',
+                    reservedAt: new Date()
+                });
+
+                await Purchase.findByIdAndUpdate(purchaseId, { $inc: { creditsLeft: -1 } }, { session });
+
+                const savedReservation = await newReservationDoc.save({ session });
+                await ClassSession.findByIdAndUpdate(sessionId, { $inc: { reservedCount: 1 } }, { session });
+                return { isPackage: true, reservation: savedReservation };
+                
+            } else if (paymentMethod === 'single_class') {
+                // For single_class, DO NOT create the reservation yet.
+                // Instead, return details for the client to initiate MercadoPago payment.
+                // The actual reservation document will be created ONLY on payment success via webhook/success callback.
+
+                // Check for existing COMPLETED reservation for this user/session
+                const existingCompletedReservation = await Reservation.findOne({ userId, sessionId, paymentStatus: 'completed' }).session(session);
+                if (existingCompletedReservation) {
+                    throw new Error('User already has a completed reservation for this session.');
+                }
+                // If there's a pending single_class reservation that was abandoned (e.g. user hit back from MP),
+                // we can safely remove it here to allow a fresh attempt.
+                // This ensures old pending records don't linger if a new attempt is made for the same session.
+                await Reservation.findOneAndDelete({ userId, sessionId, paymentStatus: 'pending', paymentMethod: 'single_class' }).session(session);
+
+
+                const singleClassPrice = 270; // Set price from your business rules
+                const classSessionName = classSession.classTypeId ? (await ClassSession.populate(classSession, { path: 'classTypeId', select: 'name' })).classTypeId.name : 'Pilates';
+
+                return {
+                    status: 'initiate_payment', // New status to signal frontend to proceed to payment initiation
+                    userId: userId,
+                    sessionId: sessionId,
+                    singleClassPrice: singleClassPrice,
+                    classSessionName: classSessionName
+                };
+                
+            } else {
+                throw new Error(`Invalid payment method: ${paymentMethod}`);
+            }
+
+        }, {
+            readPreference: 'primary',
+            readConcern: { level: 'local' },
+            writeConcern: { w: 'majority', j: true }
         });
 
-    } catch (err) {
-        await session.abortTransaction();
-        
-        if (err.name === 'ValidationError') {
-            const errors = {};
-            Object.keys(err.errors).forEach(key => {
-                errors[key] = err.errors[key].message;
+        if (result.isPackage) {
+            const populatedReservation = await Reservation.findById(result.reservation._id)
+                .populate('userId', 'name email')
+                .populate({
+                    path: 'sessionId',
+                    populate: {
+                        path: 'classTypeId instructorId',
+                        select: 'name description level'
+                    }
+                })
+                .populate('purchaseId', 'packageId creditsLeft expiresAt');
+            
+            res.status(201).json({
+                status: 'success',
+                data: { reservation: populatedReservation }
             });
-            return res.status(400).json({ 
-                error: 'Validation failed',
-                details: errors
+
+        } else if (result.status === 'initiate_payment') { // Check for the new status
+            res.status(200).json({
+                status: 'initiate_payment',
+                data: {
+                    userId: result.userId,
+                    sessionId: result.sessionId,
+                    singleClassPrice: result.singleClassPrice,
+                    classSessionName: result.classSessionName
+                },
+                message: 'Ready to initiate payment for single class.'
             });
+        } else {
+            throw new Error('Reservation could not be created due to an unexpected transaction outcome.');
         }
-        res.status(500).json({ error: err.message });
+
+    } catch (error) {
+        throw error; 
     } finally {
-        session.endSession();
+        await session.endSession();
     }
 };
 
@@ -240,33 +253,46 @@ exports.cancelReservation = async (req, res) => {
             return res.status(404).json({ error: 'Reservation not found' });
         }
 
-        // Check if user owns this reservation (if not admin)
         if (req.user.role !== 'admin' && reservation.userId.toString() !== req.user.id) {
             await session.abortTransaction();
             return res.status(403).json({ error: 'Not authorized to cancel this reservation' });
         }
 
-        // Check if session hasn't started yet (allow cancellation up to session start)
         if (reservation.sessionId.startsAt <= new Date()) {
             await session.abortTransaction();
             return res.status(400).json({ error: 'Cannot cancel past or ongoing sessions' });
         }
 
-        // Delete reservation
+        // If a pending single_class reservation is cancelled, we simply delete it
+        // and do not touch reservedCount, as it was never incremented (with the new flow, it won't exist at all unless paid)
+        // This block is mostly for legacy pending reservations or if the webhook fails.
+        if (reservation.paymentMethod === 'single_class' && reservation.paymentStatus === 'pending') {
+            await Reservation.findByIdAndDelete(reservationId).session(session);
+            await session.commitTransaction();
+            return res.json({
+                status: 'success',
+                message: 'Pending single class reservation removed successfully'
+            });
+        }
+
+        // For completed reservations, proceed with normal cancellation logic
         await Reservation.findByIdAndDelete(reservationId).session(session);
 
-        // Restore credit and decrease reserved count
-        await Purchase.findByIdAndUpdate(
-            reservation.purchaseId,
-            { $inc: { creditsLeft: 1 } },
-            { session }
-        );
+        if (reservation.paymentMethod === 'package' && reservation.purchaseId) {
+            await Purchase.findByIdAndUpdate(
+                reservation.purchaseId,
+                { $inc: { creditsLeft: 1 } },
+                { session }
+            );
+        }
 
-        await ClassSession.findByIdAndUpdate(
-            reservation.sessionId._id,
-            { $inc: { reservedCount: -1 } },
-            { session }
-        );
+        if (reservation.paymentStatus === 'completed') {
+            await ClassSession.findByIdAndUpdate(
+                reservation.sessionId._id,
+                { $inc: { reservedCount: -1 } },
+                { session }
+            );
+        }
 
         await session.commitTransaction();
 
@@ -291,18 +317,25 @@ exports.getUserReservations = async (req, res) => {
         
         let filter = { userId };
         
-        // Filter by status
         if (status === 'upcoming') {
             const sessions = await ClassSession.find({
                 startsAt: { $gt: new Date() }
             }).select('_id');
             filter.sessionId = { $in: sessions.map(s => s._id) };
+            filter.paymentStatus = 'completed'; 
         } else if (status === 'past') {
             const sessions = await ClassSession.find({
                 startsAt: { $lte: new Date() }
             }).select('_id');
             filter.sessionId = { $in: sessions.map(s => s._id) };
+            filter.paymentStatus = 'completed'; 
+        } else if (status === 'pending_payment') {
+            filter.paymentStatus = 'pending';
+            filter.paymentMethod = 'single_class'; 
+        } else {
+            filter.paymentStatus = 'completed';
         }
+
 
         const skip = (page - 1) * limit;
         
@@ -339,12 +372,43 @@ exports.getUserReservations = async (req, res) => {
     }
 };
 
+exports.getReservationById = async (req, res) => {
+    try {
+        const reservationId = req.params.id;
+        
+        const reservation = await Reservation.findById(reservationId)
+            .populate('userId', 'name email')
+            .populate({
+                path: 'sessionId',
+                populate: {
+                    path: 'classTypeId instructorId',
+                    select: 'name description level name bio'
+                }
+            })
+            .populate('purchaseId', 'packageId creditsLeft expiresAt');
+
+        if (!reservation) {
+            return res.status(404).json({ error: 'Reservation not found' });
+        }
+
+        if (req.user.role !== 'admin' && reservation.userId._id.toString() !== req.user.id) {
+            return res.status(403).json({ error: 'Not authorized to view this reservation' });
+        }
+
+        res.json({
+            status: 'success',
+            data: { reservation }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 // GET SESSION RESERVATIONS (for instructors/admin)
 exports.getSessionReservations = async (req, res) => {
     try {
         const sessionId = req.params.sessionId;
         
-        // Verify session exists
         const session = await ClassSession.findById(sessionId)
             .populate('classTypeId', 'name description level')
             .populate('instructorId', 'name bio');

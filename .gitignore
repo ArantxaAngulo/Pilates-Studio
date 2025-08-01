@@ -42,3 +42,9 @@ interfaces/node_modules/
 
 # certs
 certs/
+
+# Admin files 
+interfaces/admin.html
+
+# Admin routes 
+routes/admin.routes.js

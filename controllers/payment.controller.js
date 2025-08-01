@@ -5,25 +5,25 @@ const Package = require('../schemas/packages.model');
 const User = require('../schemas/user.model');
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 const businessRules = require('../config/businessRules.config');
+const Reservation = require('../schemas/reservations.model');
+const ClassSession = require('../schemas/classSessions.model');
 const { canUserPurchase, createPurchaseWithValidation } = require('../helpers/purchaseHelper');
 require('dotenv').config();
 
-// Log to check if access token is loaded
 console.log('MP_ACCESS_TOKEN loaded:', process.env.MP_ACCESS_TOKEN ? 'Yes' : 'No');
 
-// Configure MercadoPago with your access token
 const client = new MercadoPagoConfig({ 
   accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-4434682279033323-072219-fecfdf1c4fb06a1c8a8dc1a2c582de6e-1899614331',
   options: {
-    timeout: 30000, // 30 seconds timeout
-    retries: 3 // Retry 3 times on failure
+    timeout: 30000,
+    retries: 3
   }
 });
 
 const preference = new Preference(client);
-const paymentClient = new Payment(client); // Initialize payment client
+const paymentClient = new Payment(client);
 
-// Create payment preference
+// Create payment preference for packages
 exports.createPreference = async (req, res) => {
   try {
     const { title, price, quantity, external_reference } = req.body;
@@ -31,7 +31,6 @@ exports.createPreference = async (req, res) => {
     console.log('Request body:', req.body);
     console.log('Creating preference with:', { title, price, quantity, external_reference });
 
-    // Validate required fields
     if (!title || !price) {
       return res.status(400).json({ 
         error: 'Title and price are required',
@@ -63,7 +62,7 @@ exports.createPreference = async (req, res) => {
         excluded_payment_types: [],
         installments: 1
       },
-      binary_mode: true // Instant approval or rejection
+      binary_mode: true
     };
 
     console.log('Preference data to send:', JSON.stringify(preferenceData, null, 2));
@@ -74,7 +73,6 @@ exports.createPreference = async (req, res) => {
     console.log('Preference created successfully:', response.id);
     console.log('Response object:', JSON.stringify(response, null, 2));
     
-    // Use sandbox URL for testing
     const checkoutUrl = response.sandbox_init_point || response.init_point;
     
     res.status(200).json({ 
@@ -95,235 +93,390 @@ exports.createPreference = async (req, res) => {
 
 // Handle successful payment
 exports.handleSuccess = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { payment_id, status, external_reference, collection_status } = req.query;
     console.log('Payment success callback received:', { payment_id, status, external_reference, collection_status });
 
-    // ===== SANDBOX BLOCK =====
-    if (businessRules.payment.environment === 'sandbox') {
-      console.log("🟡 Sandbox mode - Bypassing payment verification");
-      
-      try {
-        const metadata = JSON.parse(decodeURIComponent(external_reference));
-        
-        // In development, respect business rules but log everything
-        const eligibility = await canUserPurchase(
-            metadata.userId, 
-            businessRules.getRule('purchase', 'allowMultipleActivePackages')
-        );
-        
-        console.log("[DEV] Sandbox eligibility check:", eligibility);
-        
-        if (!eligibility.canPurchase) {
-            console.log("[DEV] Blocking sandbox purchase due to business rules");
-            return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent(eligibility.reason)}`);
-        }
-
-        // Still respect business rules even in sandbox mode
-        const purchaseResult = await createPurchaseWithValidation({
-          userId: metadata.userId,
-          packageId: metadata.packageId,
-          paymentId: payment_id || `SANDBOX_${Date.now()}`
-        }, {
-          allowMultiple: businessRules.getRule('purchase', 'allowMultipleActivePackages'),
-          skipActiveCheck: false // Don't skip checks even in sandbox
-        });
-        
-        if (!purchaseResult.success) {
-          console.error('Sandbox purchase failed:', purchaseResult.error);
-          return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent(purchaseResult.error)}`);
-        }
-      } catch (error) {
-        console.error('Sandbox purchase error:', error);
-      }
-      return res.redirect('/interfaces/success.html');
-    }
-    // ===== SANDBOX BLOCK =====
-
-    // Check multiple status indicators
     const isApproved = collection_status === 'approved' || status === 'approved';
     
     if (payment_id && external_reference && isApproved) {
       try {
         const metadata = JSON.parse(decodeURIComponent(external_reference));
         
-        // Verify payment status with MercadoPago API
-        const payment = await paymentClient.get({ id: payment_id });
-        console.log('Payment verification result:', payment.status);
+        if (metadata.type === 'single_class') {
+            if (!metadata.userId || !metadata.sessionId || !metadata.singleClassPrice) {
+                console.error("🔴 Invalid metadata for single class payment in success handler:", metadata);
+                await session.abortTransaction();
+                return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent('Invalid payment data')}`);
+            }
 
+            // Check for idempotency: has this reservation already been completed for this user/session?
+            const existingCompletedReservation = await Reservation.findOne({ 
+                userId: metadata.userId, 
+                sessionId: metadata.sessionId, 
+                paymentStatus: 'completed' 
+            }).session(session);
+
+            if (existingCompletedReservation) {
+                console.log('Single class reservation already completed via webhook or previous success callback:', existingCompletedReservation._id);
+                await session.commitTransaction();
+                return res.redirect('/interfaces/success.html?type=single_class');
+            }
+
+            // Check class session capacity again
+            const classSession = await ClassSession.findById(metadata.sessionId).session(session);
+            if (!classSession) {
+                console.error(`🔴 Class session not found for single class payment in success handler: ${metadata.sessionId}`);
+                await session.abortTransaction();
+                return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent('Class session not found')}`);
+            }
+            if (classSession.reservedCount >= classSession.capacity) {
+                console.error(`🔴 Class session is full for single class payment in success handler: ${metadata.sessionId}`);
+                await session.abortTransaction();
+                return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent('Class session is full')}`);
+            }
+
+            // CREATE THE RESERVATION HERE (if not already created by webhook)
+            const newReservation = new Reservation({
+                userId: metadata.userId,
+                sessionId: metadata.sessionId,
+                purchaseId: null,
+                reservedAt: new Date(),
+                paymentStatus: 'completed',
+                paymentMethod: 'single_class',
+                singleClassPrice: metadata.singleClassPrice,
+                mercadoPagoPaymentId: payment_id,
+                paymentCompletedAt: new Date()
+            });
+            await newReservation.save({ session });
+
+            // Increment reservedCount for the class session
+            await ClassSession.findByIdAndUpdate(
+                metadata.sessionId,
+                { $inc: { reservedCount: 1 } },
+                { session }
+            );
+            
+            await session.commitTransaction();
+            console.log('Single class payment completed and reservation created:', newReservation._id);
+            return res.redirect('/interfaces/success.html?type=single_class');
+        }
+
+        // For package purchases
+        const payment = await paymentClient.get({ id: payment_id });
         if (payment.status === 'approved') {
           const package = await Package.findById(metadata.packageId);
           if (!package) {
             console.error('Package not found:', metadata.packageId);
+            await session.abortTransaction();
             return res.redirect('/interfaces/error.html?reason=package_not_found');
           }
 
-          // Check if purchase already exists for this payment
           const existingPurchase = await Purchase.findOne({ 
             mercadoPagoPaymentId: payment_id 
-          });
+          }).session(session);
           
           if (existingPurchase) {
             console.log('Purchase already exists for this payment');
+            await session.commitTransaction();
             return res.redirect('/interfaces/success.html?existing=true');
           }
 
-          // Use business rules to determine if we should allow multiple packages
-          const allowMultiple = businessRules.getRule('purchase', 'allowMultipleActivePackages');
-          
-          // Create purchase using the helper function
           const purchaseResult = await createPurchaseWithValidation({
             userId: metadata.userId,
             packageId: metadata.packageId,
             paymentId: payment_id
           }, {
-            allowMultiple: allowMultiple,
+            allowMultiple: businessRules.getRule('purchase', 'allowMultipleActivePackages'),
             skipActiveCheck: businessRules.testing.bypassPurchaseRestrictions
-          });
-
+          }, session);
+          
           if (purchaseResult.success) {
             console.log('Purchase created successfully:', purchaseResult.purchase._id);
           } else {
             console.error('Purchase creation failed:', purchaseResult.error);
-            // Don't fail the redirect - payment was still successful
           }
         }
       } catch (error) {
+        await session.abortTransaction();
         console.error('Error processing payment:', error);
-        // Don't fail the redirect if there's an error processing
-        // User still paid successfully
       }
     }
 
-    // Always redirect to success if we got here (payment was approved)
+    await session.commitTransaction();
     res.redirect('/interfaces/success.html');
   } catch (error) {
-    console.error('Error handling success:', error);
+    await session.abortTransaction();
+    console.error('Error handling success callback:', error);
     res.redirect('/interfaces/error.html?reason=processing_error');
+  } finally {
+      session.endSession();
   }
 };
 
 // Handle failed payment
 exports.handleFailure = async (req, res) => {
   console.log('Payment failed:', req.query);
+  const { external_reference } = req.query;
+  try {
+      if (external_reference) {
+          const metadata = JSON.parse(decodeURIComponent(external_reference));
+          if (metadata.type === 'single_class') {
+              // No reservation exists in DB yet, so nothing to update/delete.
+              console.log(`Payment failed for single class booking. No reservation record created.`);
+          }
+      }
+  } catch (e) {
+      console.error("Error parsing external_reference on failure:", e);
+  }
   res.redirect('/interfaces/failure.html');
 };
 
 // Handle pending payment
 exports.handlePending = async (req, res) => {
   console.log('Payment pending:', req.query);
+  const { external_reference } = req.query;
+  try {
+    if (external_reference) {
+        const metadata = JSON.parse(decodeURIComponent(external_reference));
+        if (metadata.type === 'single_class') {
+            // No reservation exists in DB yet for pending single class payment.
+            console.log(`Payment pending for single class booking. No reservation record created yet.`);
+        }
+    }
+} catch (e) {
+    console.error("Error parsing external_reference on pending:", e);
+}
   res.redirect('/interfaces/pending.html');
+};
+
+// Create single class payment preference
+exports.createSingleClassPreference = async (req, res) => {
+    try {
+        const { userId, sessionId, singleClassPrice, classSessionName } = req.body;
+
+        if (!userId || !sessionId || !singleClassPrice || !classSessionName) {
+            return res.status(400).json({ error: 'userId, sessionId, singleClassPrice, and classSessionName are required.' });
+        }
+
+        // Validate that the session exists and is not full
+        const classSession = await ClassSession.findById(sessionId);
+        if (!classSession) {
+            return res.status(404).json({ error: 'Class session not found.' });
+        }
+        if (classSession.reservedCount >= classSession.capacity) {
+            return res.status(400).json({ error: 'Class session is full.' });
+        }
+        if (classSession.startsAt <= new Date()) {
+            return res.status(400).json({ error: 'Cannot book past or ongoing sessions.' });
+        }
+        
+        // Ensure no completed reservation already exists for this user/session
+        const existingCompletedReservation = await Reservation.findOne({ userId, sessionId, paymentStatus: 'completed' });
+        if (existingCompletedReservation) {
+            return res.status(400).json({ error: 'User already has a completed reservation for this session.' });
+        }
+        
+        // Create preference
+        const preferenceData = {
+            items: [{
+                title: `Clase Individual - ${classSessionName}`,
+                unit_price: singleClassPrice,
+                quantity: 1,
+                currency_id: 'MXN'
+            }],
+            back_urls: {
+                success: `${process.env.FRONTEND_URL}/interfaces/success.html?type=single_class`,
+                failure: `${process.env.FRONTEND_URL}/interfaces/failure.html`,
+                pending: `${process.env.FRONTEND_URL}/interfaces/pending.html`
+            },
+            notification_url: envConfig.mercadoPago.webhookUrl,
+            auto_return: 'approved',
+            external_reference: JSON.stringify({
+                type: 'single_class',
+                userId,
+                sessionId,
+                singleClassPrice,
+                classSessionName
+            }),
+            statement_descriptor: 'PILATES STUDIO',
+            payment_methods: {
+              excluded_payment_types: [],
+              installments: 1
+            },
+            binary_mode: true
+        };
+
+        const response = await preference.create({ body: preferenceData });
+        res.json({
+            id: response.id,
+            init_point: response.sandbox_init_point || response.init_point
+        });
+
+    } catch (error) {
+        console.error('Error creating single class preference:', error);
+        res.status(500).json({ 
+            error: 'Error creating payment preference',
+            details: error.message 
+        });
+    }
 };
 
 // Webhook for payment notifications (IPN)
 exports.webhook = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { id, type, data } = req.body;
     
     console.log('Webhook received:', { id, type, data });
     
     // 1. Handle test webhooks 
-    if (id === "123456" || (data && data.id === "123456")) {
+    if (id === "123456" || (data && data.id === "1234157574")) {
       console.log("✅ Accepted test webhook");
+      await session.commitTransaction();
       return res.status(200).json({ status: "ok", message: "Test webhook accepted" });
     }
 
     if (type === 'payment' && data && data.id) {
       console.log(`🟠 Payment webhook received (ID: ${data.id})`);
       
-      // ===== SANBOX BLOCK =====
-      if (businessRules.payment.environment === 'sandbox') {
-        console.log("🟡 Sandbox mode - Bypassing payment verification");
-        const paymentStatus = 'approved';
-        let metadata; 
-        
-        // Get metadata from query if payment object isn't available
-        if (req.query.external_reference) {
-          metadata = JSON.parse(decodeURIComponent(req.query.external_reference));
-        } else {
-          // Fallback: Create test metadata
-          metadata = {
-            userId: "TEST_USER_ID",
-            packageId: "TEST_PKG_ID"
-          };
-        }
-      } else {
-        // Production: Verify with MercadoPago API
-        const payment = await paymentClient.get({ id: data.id });
-        paymentStatus = payment.status;
-        metadata = JSON.parse(payment.external_reference);
-      }
-      // ===== END OF SANBOX BLOCK =====
+      let payment;
+      let paymentStatus;
+      let metadata;
 
-      // 2. Verify payment with MercadoPago API
-      const payment = await paymentClient.get({ id: data.id });
-      const paymentStatus = payment.status;
+      payment = await paymentClient.get({ id: data.id });
+      paymentStatus = payment.status;
       console.log(`Payment ${data.id} status: ${paymentStatus}`);
       
-      // 3. Only process approved payments
       if (paymentStatus !== 'approved') {
+        await session.commitTransaction();
         return res.status(200).send(`OK (Ignored status: ${paymentStatus})`);
       }
 
-      // 4. Validate external_reference
       if (!payment.external_reference) {
         console.error("🔴 Missing external_reference");
+        await session.commitTransaction();
         return res.status(200).send("OK (Missing external_reference)");
       }
 
-      let metadata;
       try {
         metadata = JSON.parse(payment.external_reference);
       } catch (e) {
         console.error("🔴 Invalid external_reference format:", payment.external_reference);
+        await session.commitTransaction();
         return res.status(200).send("OK (Invalid metadata format)");
       }
       
-      // 5. Validate required fields
-      if (!metadata.userId || !metadata.packageId) {
-        console.error("🔴 Invalid metadata:", metadata);
-        return res.status(200).send("OK (Invalid metadata)");
-      }
+      // Handle single class payment webhook
+      if (metadata.type === 'single_class') {
+          if (!metadata.userId || !metadata.sessionId || !metadata.singleClassPrice) {
+              console.error("🔴 Invalid metadata for single class payment:", metadata);
+              await session.commitTransaction();
+              return res.status(200).send("OK (Invalid single class metadata)");
+          }
 
-      // 6. Check for duplicate purchases
-      const existingPurchase = await Purchase.findOne({ 
-        mercadoPagoPaymentId: data.id 
-      });
-      
-      if (existingPurchase) {
-        console.log("🟡 Duplicate purchase ignored");
-        return res.status(200).send("OK (Duplicate)");
-      }
+          // Check if a reservation for this user and session has ALREADY been completed (idempotency)
+          const existingCompletedReservation = await Reservation.findOne({ 
+              userId: metadata.userId, 
+              sessionId: metadata.sessionId, 
+              paymentStatus: 'completed' 
+          }).session(session);
 
-      // 7. Verify package exists
-      const package = await Package.findById(metadata.packageId);
-      if (!package) {
-        console.error(`🔴 Package not found: ${metadata.packageId}`);
-        return res.status(200).send("OK (Package not found)");
-      }
+          if (existingCompletedReservation) {
+              console.log("🟡 Single class reservation already completed, webhook ignored for user:", metadata.userId, "session:", metadata.sessionId);
+              await session.commitTransaction();
+              return res.status(200).send("OK (Single class reservation already completed)");
+          }
 
-      // 8. Create purchase using helper function
-      const purchaseResult = await createPurchaseWithValidation({
-        userId: metadata.userId,
-        packageId: metadata.packageId,
-        paymentId: data.id
-      }, {
-        allowMultiple: businessRules.getRule('purchase', 'allowMultipleActivePackages'),
-        skipActiveCheck: businessRules.testing.bypassPurchaseRestrictions
-      });
+          // Check class session capacity again to prevent overbooking if concurrent
+          const classSession = await ClassSession.findById(metadata.sessionId).session(session);
+          if (!classSession) {
+              console.error(`🔴 Class session not found for single class payment: ${metadata.sessionId}`);
+              await session.abortTransaction();
+              return res.status(200).send("OK (Class session not found)");
+          }
+          if (classSession.reservedCount >= classSession.capacity) {
+              console.error(`🔴 Class session is full for single class payment: ${metadata.sessionId}`);
+              await session.abortTransaction();
+              return res.status(200).send("OK (Class session is full)");
+          }
+          
+          // CREATE THE RESERVATION HERE
+          const newReservation = new Reservation({
+              userId: metadata.userId,
+              sessionId: metadata.sessionId,
+              purchaseId: null,
+              reservedAt: new Date(),
+              paymentStatus: 'completed',
+              paymentMethod: 'single_class',
+              singleClassPrice: metadata.singleClassPrice,
+              mercadoPagoPaymentId: data.id,
+              paymentCompletedAt: new Date()
+          });
+          await newReservation.save({ session });
 
-      if (purchaseResult.success) {
-        console.log(`🟢 Purchase created: ${purchaseResult.purchase._id}`);
+          // Increment reservedCount in the class session
+          await ClassSession.findByIdAndUpdate(
+              metadata.sessionId,
+              { $inc: { reservedCount: 1 } },
+              { session }
+          );
+
+          console.log(`🟢 Single class reservation created and payment completed for user ${metadata.userId}, session ${metadata.sessionId}`);
       } else {
-        console.error(`🔴 Purchase creation failed: ${purchaseResult.error}`);
+        // Original package purchase webhook logic
+        if (!metadata.userId || !metadata.packageId) {
+          console.error("🔴 Invalid metadata:", metadata);
+          await session.commitTransaction();
+          return res.status(200).send("OK (Invalid metadata)");
+        }
+
+        const existingPurchase = await Purchase.findOne({ 
+          mercadoPagoPaymentId: data.id 
+        }).session(session);
+        
+        if (existingPurchase) {
+          console.log("🟡 Duplicate purchase ignored");
+          await session.commitTransaction();
+          return res.status(200).send("OK (Duplicate)");
+        }
+
+        const package = await Package.findById(metadata.packageId).session(session);
+        if (!package) {
+          console.error(`🔴 Package not found: ${metadata.packageId}`);
+          await session.commitTransaction();
+          return res.status(200).send("OK (Package not found)");
+        }
+
+        const purchaseResult = await createPurchaseWithValidation({
+          userId: metadata.userId,
+          packageId: metadata.packageId,
+          paymentId: data.id
+        }, {
+          allowMultiple: businessRules.getRule('purchase', 'allowMultipleActivePackages'),
+          skipActiveCheck: businessRules.testing.bypassPurchaseRestrictions
+        }, session);
+        
+        if (purchaseResult.success) {
+          console.log(`🟢 Purchase created: ${purchaseResult.purchase._id}`);
+        } else {
+          console.error(`🔴 Purchase creation failed: ${purchaseResult.error}`);
+        }
       }
+
+      await session.commitTransaction();
     }
 
-    // Always return 200 for webhooks
     res.status(200).send('OK');
   } catch (error) {
+    await session.abortTransaction();
     console.error('🔴 Webhook error:', error);
-    // Still return 200 to prevent retries
     res.status(200).send('OK (Error processed)');
+  } finally {
+    session.endSession();
   }
 };

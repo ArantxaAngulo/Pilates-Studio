@@ -10,7 +10,7 @@ const purchasesSchema = new mongoose.Schema({
     },
     packageId: {
       type: String, // refers to packages._id
-      required: true
+      required: false
     },
     boughtAt: {
       type: Date,

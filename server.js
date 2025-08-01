@@ -10,7 +10,7 @@ const rateLimit = require('express-rate-limit');
 const https = require('https');
 const fs = require('fs');
 
-require('./schemas/user.model'); // Load User schema
+const User = require('./schemas/user.model'); // Load User schema
 require('./schemas/purchases.model'); // Load Purchase schema
 require('./schemas/packages.model'); // Load Package schema
 
@@ -120,6 +120,7 @@ mongoose.connect(process.env.MONGODB_URI)
   app.use('/api/purchases', purchaseRoutes);
   app.use('/api/reservations', reservationRoutes);
   app.use('/api/payments', require('./routes/payment.routes'));
+  app.use('/api/admin', require('./routes/admin.routes'));
 
 
   app.use((err, req, res, next) => { // Basic error handling

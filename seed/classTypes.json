@@ -4,35 +4,35 @@
     "name": "Pilates Reformer",
     "description": "Ejercicios de Pilates usando la máquina reformer para fortalecer y tonificar todo el cuerpo. Perfecto para principiantes que quieren aprender la técnica correcta.",
     "level": "Beginner",
-    "defaultCapacity": 8
+    "defaultCapacity": 10
   },
   {
     "_id": "pilates-reformer-int",
     "name": "Pilates Reformer Intermedio",
     "description": "Rutina de reformer más desafiante con ejercicios que requieren mayor fuerza, equilibrio y coordinación.",
     "level": "Intermediate",
-    "defaultCapacity": 8
+    "defaultCapacity": 10
   },
   {
     "_id": "pilates-reformer-adv",
     "name": "Pilates Reformer Avanzado",
     "description": "Clase intensiva de reformer con secuencias complejas y ejercicios avanzados para estudiantes experimentados.",
     "level": "Advanced",
-    "defaultCapacity": 6
+    "defaultCapacity": 10
   },
   {
     "_id": "pilates-mat-beg",
     "name": "Pilates MAT",
     "description": "Clase de Pilates en colchoneta enfocada en el fortalecimiento del core y la flexibilidad. Ideal para principiantes.",
     "level": "Beginner",
-    "defaultCapacity": 12
+    "defaultCapacity": 10
   },
   {
     "_id": "pilates-mat-int",
     "name": "Pilates MAT Intermedio",
     "description": "Rutina de colchoneta más intensa con ejercicios que desafían la estabilidad y fuerza del core.",
     "level": "Intermediate",
-    "defaultCapacity": 12
+    "defaultCapacity": 10
   },
   {
     "_id": "power-burn",
@@ -46,14 +46,14 @@
     "name": "Yoga Hatha",
     "description": "Práctica de yoga suave y relajante enfocada en posturas básicas y respiración consciente.",
     "level": "Beginner",
-    "defaultCapacity": 15
+    "defaultCapacity": 10
   },
   {
     "_id": "yoga-vinyasa",
     "name": "Yoga Vinyasa",
     "description": "Flujo dinámico de yoga que conecta movimiento con respiración en secuencias fluidas.",
     "level": "Intermediate",
-    "defaultCapacity": 12
+    "defaultCapacity": 10
   },
   {
     "_id": "sculpt",
@@ -67,6 +67,6 @@
     "name": "Barre Intensity",
     "description": "Workout inspirado en ballet que utiliza la barra para ejercicios de resistencia y tonificación.",
     "level": "Advanced",
-    "defaultCapacity": 12
+    "defaultCapacity": 10
   }
 ]
