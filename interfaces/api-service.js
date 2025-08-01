@@ -63,7 +63,7 @@ async function apiCall(endpoint, options = {}) {
 // API Service Object
 const apiService = {
     // Base configuration
-    baseURL: 'http://localhost:5000/api',
+    baseURL: API_BASE_URL,
     
     // Helper function for API calls
     async apiCall(endpoint, options = {}) {
