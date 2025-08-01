@@ -4,10 +4,10 @@ function getApiBaseUrl() {
     const currentHost = window.location.hostname;
     const currentProtocol = window.location.protocol;
     
-    // If we're on ngrok, use ngrok URL
+    /* If we're on ngrok, use ngrok URL
     if (currentHost.includes('ngrok')) {
         return `${currentProtocol}//${currentHost}/api`;
-    }
+    } */
     
     // If we're on localhost, use localhost
     if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
