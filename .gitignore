@@ -47,4 +47,4 @@ certs/
 interfaces/admin.html
 
 # Admin routes 
-routes/admin.routes.js
+# routes/admin.routes.js
