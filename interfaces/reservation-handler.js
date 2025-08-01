@@ -8,6 +8,9 @@ let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let userActivePackage = null;
 
+// Get the API base URL from api-service.js
+const API_BASE_URL = window.API_BASE_URL || 'https://pilates-studio-test.onrender.com/api';
+
 // Initialize reservation system
 document.addEventListener('DOMContentLoaded', function() {
     if (document.querySelector('.calendar-grid')) {
@@ -434,7 +437,7 @@ async function handleReservation() {
                 const { userId: respUserId, sessionId: respSessionId, singleClassPrice, classSessionName } = initiateReservationResponse.data;
 
                 // Step 2: Create MercadoPago preference using the data from step 1
-                const paymentPreferenceResponse = await fetch('http://localhost:5000/api/payments/create_single_class_preference', {
+                const paymentPreferenceResponse = await fetch(`${API_BASE_URL}/payments/create_single_class_preference`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
