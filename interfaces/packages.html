@@ -392,6 +392,31 @@
         }
     }
 
+    async function checkTrialEligibility(userId) {
+    try {
+        const response = await fetch(`http://localhost:5000/api/purchases/user/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) return true; // If can't check, allow attempt (server will validate)
+        
+        const data = await response.json();
+        const purchases = data.data.purchases || [];
+        
+        // Check if user has any trial package purchase
+        const hasTrialPurchase = purchases.some(p => 
+            p.packageId?._id === 'pkg-trial' || p.packageId?.name === 'Clase de Prueba'
+        );
+        
+        return !hasTrialPurchase;
+    } catch (error) {
+        console.error('Error checking trial eligibility:', error);
+        return true; // If error, let server validate
+    }
+}
+
     // Function to render packages
     function renderPackages() {
         const container = document.getElementById('packages-container');
@@ -437,166 +462,97 @@
 
     // Function to handle package purchase
     async function handlePackagePurchase(packageData) {
-        // Validate packageData exists and has required properties
-        if (!packageData || typeof packageData !== 'object') {
-            console.error('Invalid packageData:', packageData);
-            showPackageModal('Error', 'Datos del paquete no válidos');
-            return;
-        }
-
-        console.log('Processing purchase for package:', packageData);
-        
-        // Check if user is logged in
+    try {
+        // Check login first
         if (!isUserLoggedIn()) {
             sessionStorage.setItem('intendedAction', JSON.stringify({
                 action: 'purchasePackage',
                 packageId: packageData.id
             }));
-            window.location.href = 'login.html';
+            window.location.href = '/interfaces/log-in.html';
             return;
         }
 
-        // Get user ID
-        const userId = getUserIdFromToken();
-        if (!userId) {
-            showPackageModal('Error', 'No se pudo obtener la información del usuario');
-            return;
-        }
-
-        // First, check if user already has an active package
-        try {
-            const activePackageResponse = await fetch(`http://localhost:5000/api/purchases/user/${userId}/active`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            
-            if (activePackageResponse.ok) {
-                const activePackageData = await activePackageResponse.json();
-                
-                
-                if (activePackageData.data && activePackageData.data.activePackage) {
-                    const activePackage = activePackageData.data.activePackage;
-                    const packageName = activePackage.packageId.name;
-                    const creditsLeft = activePackage.creditsLeft;
-                    const expiresAt = new Date(activePackage.expiresAt).toLocaleDateString('es-MX');
-                    
-                    // DEBUG: Force stop here
-                    console.error('ACTIVE PACKAGE BLOCK TRIGGERED');
-                    showPackageModal(
-                        'Ya tienes un paquete activo',
-                        `Actualmente tienes el paquete "${packageName}" con ${creditsLeft} créditos disponibles.<br><br>
-                        Este paquete expira el ${expiresAt}.`,
-                        true
-                    );
-                    throw new Error('User has active package'); 
-                    
-                    // DEBUG: Log active package info
-                    console.log('Active package detected:', {
-                        packageName,
-                        creditsLeft,
-                        expiresAt,
-                        rawData: activePackage
-                    });
-                    // DEBUG: Test if modal is being blocked
-                    const testModal = document.createElement('div');
-                    testModal.innerHTML = 'TEST MODAL - SHOULD BE VISIBLE';
-                    testModal.style.position = 'fixed';
-                    testModal.style.top = '20px';
-                    testModal.style.left = '20px';
-                    testModal.style.background = 'red';
-                    testModal.style.color = 'white';
-                    testModal.style.padding = '10px';
-                    testModal.style.zIndex = '9999';
-                    document.body.appendChild(testModal);
-
-                    showPackageModal(
-                        'Ya tienes un paquete activo',
-                        `Actualmente tienes el paquete "${packageName}" con ${creditsLeft} ${creditsLeft === 1 ? 'clase' : 'clases'} disponibles.<br><br>
-                        Este paquete expira el ${expiresAt}.<br><br>
-                        Debes usar todas tus clases o esperar a que expire tu paquete actual antes de comprar uno nuevo.`,
-                        true
-                    );
-                    return;
-                }
-            } else if (!activePackageResponse.ok && activePackageResponse.status !== 404) {
-                // If there's an error checking active package (but not 404), log it but continue
-                console.error('Error response from active package check:', activePackageResponse.status);
+        const userData = getUserData();
+        
+        // Check trial package eligibility on frontend
+        if (packageData.id === 'pkg-trial') {
+            const isEligible = await checkTrialEligibility(userData.id);
+            if (!isEligible) {
+                showPackageModal(
+                    'Clase de Prueba No Disponible', 
+                    'Ya has comprado la clase de prueba anteriormente. Por favor selecciona otro paquete.'
+                );
+                return;
             }
-        } catch (error) {
-            console.error('Error checking active package:', error);
-            // Continue with purchase even if check fails
-            // RE-ENABLE BUTTONS
-            document.querySelectorAll('.btn-comprar').forEach(btn => {
-                btn.disabled = false;
-                btn.innerHTML = 'Comprar →';
-            });
-            return;
         }
 
-        // Disable all buttons and show loading
-        const buttons = document.querySelectorAll('.btn-comprar');
+        // Disable all purchase buttons to prevent double clicks
+        const buttons = document.querySelectorAll('.package-button');
         buttons.forEach(btn => {
             btn.disabled = true;
-            btn.innerHTML = '<div class="spinner" style="display: inline-block;"></div>';
+            btn.innerHTML = 'Procesando...';
         });
 
-        try {
-            // Create the metadata for the purchase
-            const metadata = {
-                userId: userId,
-                packageId: packageData.id,
-                timestamp: new Date().toISOString()
-            };
+        // Prepare metadata
+        const metadata = {
+            type: 'package',
+            userId: userData.id,
+            packageId: packageData.id,
+            packageName: packageData.title,
+            packagePrice: packageData.price
+        };
 
-            /* DEBUG: Verify we should proceed
-            console.log('Proceeding to payment - no active package or check failed');
-            const shouldProceed = confirm('DEBUG: Should proceed to payment? Check console for active package info first.');
-            if (!shouldProceed) {
-                buttons.forEach(btn => {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Comprar →';
-                });
-                return;
-            } */
+        // Create MercadoPago preference
+        const response = await fetch('http://localhost:5000/api/payments/create_preference', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                title: packageData.title,
+                price: packageData.price,
+                quantity: 1,
+                external_reference: JSON.stringify(metadata)
+            })
+        });
 
-            // Create MercadoPago preference
-            const response = await fetch('http://localhost:5000/api/payments/create_preference', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    title: packageData.title,
-                    price: packageData.price,
-                    quantity: 1,
-                    external_reference: JSON.stringify(metadata) // Pass metadata
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Error al crear la preferencia de pago');
+        const responseData = await response.json();
+        
+        if (!response.ok) {
+            // Check for trial restriction error
+            if (responseData.code === 'TRIAL_ALREADY_PURCHASED') {
+                showPackageModal('Clase de Prueba No Disponible', responseData.error);
+            } else {
+                throw new Error(responseData.error || 'Error al crear la preferencia de pago');
             }
-
-            const preferenceData = await response.json();
-            console.log('Preference created:', preferenceData);
-
-            // Redirect to MercadoPago checkout
-            window.location.href = preferenceData.init_point;
-
-        } catch (error) {
-            console.error('Error creating payment preference:', error);
-            showPackageModal('Error', error.message || 'Error al procesar el pago. Por favor, intenta nuevamente.');
             
             // Re-enable buttons
             buttons.forEach(btn => {
                 btn.disabled = false;
                 btn.innerHTML = 'Comprar →';
             });
+            return;
         }
+
+        console.log('Preference created:', responseData);
+
+        // Redirect to MercadoPago checkout
+        window.location.href = responseData.init_point;
+
+    } catch (error) {
+        console.error('Error creating payment preference:', error);
+        showPackageModal('Error', error.message || 'Error al procesar el pago. Por favor, intenta nuevamente.');
+        
+        // Re-enable buttons
+        const buttons = document.querySelectorAll('.package-button');
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.innerHTML = 'Comprar →';
+        });
     }
+}
 
     // Load packages when page loads
     document.addEventListener('DOMContentLoaded', function() {

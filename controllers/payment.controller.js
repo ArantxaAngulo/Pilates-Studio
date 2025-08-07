@@ -23,13 +23,48 @@ const client = new MercadoPagoConfig({
 const preference = new Preference(client);
 const paymentClient = new Payment(client);
 
+// Check if user has already purchased trial package
+async function hasUserPurchasedTrial(userId) {
+  try {
+    const trialPurchase = await Purchase.findOne({
+      userId,
+      packageId: 'pkg-trial' // Trial package ID from your packages.json
+    });
+    return !!trialPurchase;
+  } catch (error) {
+    console.error('Error checking trial purchase:', error);
+    return false;
+  }
+}
+
 // Create payment preference for packages
 exports.createPreference = async (req, res) => {
   try {
     const { title, price, quantity, external_reference } = req.body;
+    const userId = req.user?.id;
 
     console.log('Request body:', req.body);
     console.log('Creating preference with:', { title, price, quantity, external_reference });
+
+    // Parse external_reference to check if it's a trial package
+    if (external_reference) {
+      try {
+        const metadata = JSON.parse(external_reference);
+        
+        // Check if this is a trial package purchase
+        if (metadata.packageId === 'pkg-trial' && metadata.userId) {
+          const hasTrial = await hasUserPurchasedTrial(metadata.userId);
+          if (hasTrial) {
+            return res.status(400).json({ 
+              error: 'Ya has comprado la clase de prueba anteriormente. Por favor selecciona otro paquete.',
+              code: 'TRIAL_ALREADY_PURCHASED'
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing external_reference:', e);
+      }
+    }
 
     if (!title || !price) {
       return res.status(400).json({ 
@@ -50,11 +85,11 @@ exports.createPreference = async (req, res) => {
         }
       ],
       back_urls: {
-          success: envConfig.mercadoPago.successUrl,
-          failure: envConfig.mercadoPago.failureUrl,
-          pending: envConfig.mercadoPago.pendingUrl
+        success: 'http://localhost:5000/interfaces/success.html',
+        failure: 'http://localhost:5000/interfaces/failure.html',
+        pending: 'http://localhost:5000/interfaces/pending.html'
       },
-      notification_url: envConfig.mercadoPago.webhookUrl,
+      notification_url: 'http://localhost:5000/api/payments/webhook',
       auto_return: 'approved',
       external_reference: external_reference || '',
       statement_descriptor: 'PILATES STUDIO',
@@ -71,7 +106,7 @@ exports.createPreference = async (req, res) => {
     const response = await preference.create({ body: preferenceData });
     
     console.log('Preference created successfully:', response.id);
-    console.log('Response object:', JSON.stringify(response, null, 2));
+    console.log('Init point:', response.sandbox_init_point || response.init_point);
     
     const checkoutUrl = response.sandbox_init_point || response.init_point;
     

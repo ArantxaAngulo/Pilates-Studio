@@ -22,6 +22,32 @@ router.post('/', purchasesController.createPurchase);
 // Get specific purchase by ID
 router.get('/:id', purchasesController.getPurchaseById);
 
+// Check if user has purchased trial package
+router.get('/check-trial/:userId', validateUserAccess, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const Purchase = require('../schemas/purchases.model');
+        
+        // Check for trial package purchase
+        const trialPurchase = await Purchase.findOne({
+            userId,
+            packageId: 'pkg-trial'
+        });
+        
+        res.json({
+            hasPurchasedTrial: !!trialPurchase,
+            purchase: trialPurchase ? {
+                id: trialPurchase._id,
+                boughtAt: trialPurchase.boughtAt,
+                expiresAt: trialPurchase.expiresAt
+            } : null
+        });
+    } catch (error) {
+        console.error('Error checking trial status:', error);
+        res.status(500).json({ error: 'Error checking trial status' });
+    }
+});
+
 // ADMIN ONLY ROUTES
 // Get all purchases
 router.get('/', requireAdmin, purchasesController.getAllPurchases);

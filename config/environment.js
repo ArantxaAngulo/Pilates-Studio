@@ -1,31 +1,28 @@
-// Centralized environment configuration
-
+// environment.js - BRANCH AKRANKA - CONFIG FOR LOCALHOST:5000
 const isDevelopment = process.env.NODE_ENV !== 'production';
-const ngrokUrl = process.env.NGROK_URL || 'https://e6564ebe907f.ngrok-free.app';
-const localUrl = 'http://localhost:5000';
 
 module.exports = {
   // API URL configuration
   api: {
-    baseUrl: isDevelopment ? localUrl : process.env.API_URL,
-    publicUrl: isDevelopment ? ngrokUrl : process.env.PUBLIC_URL,
+    baseUrl: 'http://localhost:5000',
+    publicUrl: isDevelopment ? 'http://localhost:5000' : process.env.PUBLIC_URL,
   },
   
-  // Frontend URLs
+  // Frontend URLs  
   frontend: {
-    baseUrl: isDevelopment ? 'http://localhost:3000' : process.env.FRONTEND_URL,
-    publicUrl: isDevelopment ? ngrokUrl : process.env.FRONTEND_PUBLIC_URL,
+    baseUrl: 'http://localhost:5000',
+    publicUrl: isDevelopment ? 'http://localhost:5000' : process.env.FRONTEND_PUBLIC_URL,
   },
   
-  // MercadoPago URLs
+  // MercadoPago URLs - localhost
   mercadoPago: {
-    successUrl: `${ngrokUrl}/api/payments/success`,
-    failureUrl: `${ngrokUrl}/api/payments/failure`,
-    pendingUrl: `${ngrokUrl}/api/payments/pending`,
-    webhookUrl: `${ngrokUrl}/api/payments/webhook`,
+    successUrl: 'http://localhost:5000/interfaces/success.html',
+    failureUrl: 'http://localhost:5000/interfaces/failure.html', 
+    pendingUrl: 'http://localhost:5000/interfaces/pending.html',
+    webhookUrl: 'http://localhost:5000/api/payments/webhook',
   },
   
-  // Database configuration (never expose to frontend!)
+  // Database configuration
   database: {
     uri: process.env.MONGODB_URI,
     options: {
@@ -36,8 +33,6 @@ module.exports = {
   
   // Get the appropriate API URL for frontend
   getApiUrl() {
-    // If we're being accessed via ngrok, use ngrok URL
-    // Otherwise use localhost
-    return isDevelopment ? ngrokUrl : this.api.publicUrl;
+    return 'http://localhost:5000';
   }
 };
