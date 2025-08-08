@@ -1,7 +1,51 @@
+const mongoose = require('mongoose');
 const Reservation = require('../schemas/reservations.model');
 const ClassSession = require('../schemas/classSessions.model');
 const Purchase = require('../schemas/purchases.model');
-const mongoose = require('mongoose');
+const { MercadoPagoConfig, Payment } = require('mercadopago');
+
+// Initialize MercadoPago client for refunds
+const client = new MercadoPagoConfig({ 
+  accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-4434682279033323-072219-fecfdf1c4fb06a1c8a8dc1a2c582de6e'
+});
+const paymentClient = new Payment(client);
+
+// Helper function to check if action is within 8 hours of class
+function isWithin8Hours(classStartTime) {
+    const now = new Date();
+    const classStart = new Date(classStartTime);
+    const hoursUntilClass = (classStart - now) / (1000 * 60 * 60); // Convert milliseconds to hours
+    return hoursUntilClass < 8;
+}
+
+// Helper function to process MercadoPago refund
+async function processMercadoPagoRefund(paymentId, amount = null) {
+    try {
+        console.log(`Processing refund for payment ${paymentId}, amount: ${amount || 'full'}`);
+        
+        // Create refund request
+        const refundData = amount ? { amount } : {}; // If no amount specified, it's a full refund
+        
+        const refund = await paymentClient.refund({
+            id: paymentId,
+            body: refundData
+        });
+        
+        console.log('Refund processed successfully:', refund);
+        return {
+            success: true,
+            refundId: refund.id,
+            status: refund.status,
+            amount: refund.amount
+        };
+    } catch (error) {
+        console.error('Error processing MercadoPago refund:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
 
 // GET ALL RESERVATIONS
 exports.getAllReservations = async (req, res) => {
@@ -90,12 +134,128 @@ const createReservationWithRetry = async (req, res, maxRetries = 3) => {
 
 // Updated createReservation function for the backend
 exports.createReservation = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
     try {
-        await createReservationWithRetry(req, res);
-    } catch (error) {
-        // Error already logged and response sent in createReservationWithRetry.
+        const { userId, sessionId, purchaseId, paymentMethod } = req.body;
+        
+        // Validate user is booking for themselves (unless admin)
+        if (req.user.role !== 'admin' && userId !== req.user.id) {
+            await session.abortTransaction();
+            return res.status(403).json({ error: 'Not authorized to book for other users' });
+        }
+
+        // Get class session details
+        const classSession = await ClassSession.findById(sessionId).session(session);
+        
+        if (!classSession) {
+            await session.abortTransaction();
+            return res.status(404).json({ error: 'Class session not found' });
+        }
+
+        // Check 8-hour rule for reservations
+        if (isWithin8Hours(classSession.startsAt)) {
+            await session.abortTransaction();
+            return res.status(400).json({ 
+                error: 'No se pueden hacer reservas con menos de 8 horas de anticipación',
+                errorCode: 'WITHIN_8_HOURS'
+            });
+        }
+
+        // Check if class has already started or passed
+        if (new Date(classSession.startsAt) <= new Date()) {
+            await session.abortTransaction();
+            return res.status(400).json({ error: 'Cannot book past or ongoing sessions' });
+        }
+
+        // Check capacity
+        if (classSession.reservedCount >= classSession.capacity) {
+            await session.abortTransaction();
+            return res.status(400).json({ error: 'Class is full' });
+        }
+
+        // Check for duplicate reservation
+        const existingReservation = await Reservation.findOne({
+            userId,
+            sessionId,
+            status: { $ne: 'cancelled' }
+        }).session(session);
+
+        if (existingReservation) {
+            await session.abortTransaction();
+            return res.status(400).json({ error: 'You already have a reservation for this class' });
+        }
+
+        // Handle package-based reservation
+        if (paymentMethod === 'package' && purchaseId) {
+            const purchase = await Purchase.findById(purchaseId).session(session);
+            
+            if (!purchase) {
+                await session.abortTransaction();
+                return res.status(404).json({ error: 'Purchase not found' });
+            }
+
+            if (purchase.userId.toString() !== userId) {
+                await session.abortTransaction();
+                return res.status(403).json({ error: 'This package does not belong to the user' });
+            }
+
+            if (purchase.creditsLeft <= 0) {
+                await session.abortTransaction();
+                return res.status(400).json({ error: 'No credits left in package' });
+            }
+
+            if (new Date(purchase.expiresAt) < new Date()) {
+                await session.abortTransaction();
+                return res.status(400).json({ error: 'Package has expired' });
+            }
+
+            // Deduct credit
+            purchase.creditsLeft -= 1;
+            await purchase.save({ session });
+        }
+
+        // Create reservation
+        const newReservation = new Reservation({
+            userId,
+            sessionId,
+            purchaseId: paymentMethod === 'package' ? purchaseId : null,
+            paymentMethod,
+            paymentStatus: paymentMethod === 'package' ? 'completed' : 'pending',
+            status: 'confirmed',
+            bookedAt: new Date()
+        });
+
+        await newReservation.save({ session });
+
+        // Update class session reserved count
+        classSession.reservedCount += 1;
+        await classSession.save({ session });
+
+        await session.commitTransaction();
+
+        // Populate the reservation before sending response
+        const populatedReservation = await Reservation.findById(newReservation._id)
+            .populate('sessionId')
+            .populate('userId', 'name email');
+
+        res.status(201).json({
+            status: 'success',
+            data: {
+                reservation: populatedReservation
+            }
+        });
+
+    } catch (err) {
+        await session.abortTransaction();
+        console.error('Error creating reservation:', err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        session.endSession();
     }
 };
+
 
 const createReservationInternal = async (req, res) => {
     const session = await mongoose.startSession();
@@ -236,7 +396,7 @@ const createReservationInternal = async (req, res) => {
     }
 };
 
-// CANCEL RESERVATION
+// CANCEL RESERVATION (Updated with 8-hour rule and refunds)
 exports.cancelReservation = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -253,56 +413,83 @@ exports.cancelReservation = async (req, res) => {
             return res.status(404).json({ error: 'Reservation not found' });
         }
 
+        // Check authorization
         if (req.user.role !== 'admin' && reservation.userId.toString() !== req.user.id) {
             await session.abortTransaction();
             return res.status(403).json({ error: 'Not authorized to cancel this reservation' });
         }
 
+        // Check if class has already started
         if (reservation.sessionId.startsAt <= new Date()) {
             await session.abortTransaction();
             return res.status(400).json({ error: 'Cannot cancel past or ongoing sessions' });
         }
 
-        // If a pending single_class reservation is cancelled, we simply delete it
-        // and do not touch reservedCount, as it was never incremented (with the new flow, it won't exist at all unless paid)
-        // This block is mostly for legacy pending reservations or if the webhook fails.
-        if (reservation.paymentMethod === 'single_class' && reservation.paymentStatus === 'pending') {
-            await Reservation.findByIdAndDelete(reservationId).session(session);
-            await session.commitTransaction();
-            return res.json({
-                status: 'success',
-                message: 'Pending single class reservation removed successfully'
-            });
+        // Check 8-hour rule for cancellations
+        const within8Hours = isWithin8Hours(reservation.sessionId.startsAt);
+        
+        let refundResult = null;
+        let refunded = false;
+
+        if (within8Hours) {
+            // Within 8 hours - NO refund for package credits or money
+            refunded = false;
+        } else {
+            // Outside 8 hours - Process refund based on payment method
+            if (reservation.paymentMethod === 'package' && reservation.purchaseId) {
+                // Refund package credit
+                await Purchase.findByIdAndUpdate(
+                    reservation.purchaseId,
+                    { $inc: { creditsLeft: 1 } },
+                    { session }
+                );
+                refunded = true;
+            } else if (reservation.paymentMethod === 'single_class' && reservation.mercadoPagoPaymentId) {
+                // Process MercadoPago refund for single class payment
+                refundResult = await processMercadoPagoRefund(reservation.mercadoPagoPaymentId);
+                refunded = refundResult?.success || false;
+                
+                if (!refunded) {
+                    console.error('Refund failed but continuing with cancellation:', refundResult?.error);
+                }
+            }
         }
 
-        // For completed reservations, proceed with normal cancellation logic
+        // Update class session reserved count
+        await ClassSession.findByIdAndUpdate(
+            reservation.sessionId._id,
+            { $inc: { reservedCount: -1 } },
+            { session }
+        );
+
+        // DELETE the reservation from database
         await Reservation.findByIdAndDelete(reservationId).session(session);
-
-        if (reservation.paymentMethod === 'package' && reservation.purchaseId) {
-            await Purchase.findByIdAndUpdate(
-                reservation.purchaseId,
-                { $inc: { creditsLeft: 1 } },
-                { session }
-            );
-        }
-
-        if (reservation.paymentStatus === 'completed') {
-            await ClassSession.findByIdAndUpdate(
-                reservation.sessionId._id,
-                { $inc: { reservedCount: -1 } },
-                { session }
-            );
-        }
 
         await session.commitTransaction();
 
+        // Prepare response message
+        let message;
+        if (within8Hours) {
+            message = 'Reserva cancelada. No se reembolsarán créditos ni dinero (cancelación dentro de las 8 horas previas a la clase)';
+        } else if (reservation.paymentMethod === 'package') {
+            message = 'Reserva cancelada exitosamente. Tu crédito ha sido reembolsado.';
+        } else if (refundResult?.success) {
+            message = 'Reserva cancelada exitosamente. El reembolso se procesará en 5-10 días hábiles.';
+        } else {
+            message = 'Reserva cancelada. Hubo un problema con el reembolso, por favor contacta soporte.';
+        }
+
         res.json({
             status: 'success',
-            message: 'Reservation cancelled successfully'
+            message,
+            refunded,
+            refundDetails: refundResult,
+            within8Hours
         });
 
     } catch (err) {
         await session.abortTransaction();
+        console.error('Error cancelling reservation:', err);
         res.status(500).json({ error: err.message });
     } finally {
         session.endSession();
@@ -431,6 +618,36 @@ exports.getSessionReservations = async (req, res) => {
                 availableSpots: session.capacity - session.reservedCount
             }
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// CHECK IF USER CAN BOOK/CANCEL A CLASS
+exports.checkReservationEligibility = async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        
+        const classSession = await ClassSession.findById(sessionId);
+        
+        if (!classSession) {
+            return res.status(404).json({ error: 'Class session not found' });
+        }
+        
+        const now = new Date();
+        const classStart = new Date(classSession.startsAt);
+        const hoursUntilClass = (classStart - now) / (1000 * 60 * 60);
+        
+        res.json({
+            canBook: hoursUntilClass >= 8 && classStart > now,
+            canCancel: hoursUntilClass >= 8 && classStart > now,
+            willGetRefund: hoursUntilClass >= 8,
+            hoursUntilClass: Math.round(hoursUntilClass * 10) / 10,
+            message: hoursUntilClass < 8 
+                ? 'Las reservas y cancelaciones deben hacerse con al menos 8 horas de anticipación'
+                : 'Puedes reservar o cancelar esta clase'
+        });
+        
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

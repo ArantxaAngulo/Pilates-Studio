@@ -469,15 +469,19 @@
                 action: 'purchasePackage',
                 packageId: packageData.id
             }));
-            window.location.href = '/interfaces/log-in.html';
+            window.location.href = 'login.html';
             return;
         }
 
-        const userData = getUserData();
+        const userId = getUserIdFromToken();
+        if (!userId) {
+            showPackageModal('Error', 'No se pudo identificar al usuario. Por favor inicia sesión nuevamente.');
+            return;
+        }
         
-        // Check trial package eligibility on frontend
+        // Check trial package eligibility
         if (packageData.id === 'pkg-trial') {
-            const isEligible = await checkTrialEligibility(userData.id);
+            const isEligible = await checkTrialEligibility(userId);
             if (!isEligible) {
                 showPackageModal(
                     'Clase de Prueba No Disponible', 
@@ -487,66 +491,47 @@
             }
         }
 
-        // Disable all purchase buttons to prevent double clicks
-        const buttons = document.querySelectorAll('.package-button');
+        // Disable buttons
+        const buttons = document.querySelectorAll('.btn-comprar');
         buttons.forEach(btn => {
             btn.disabled = true;
-            btn.innerHTML = 'Procesando...';
+            btn.innerHTML = '<div class="spinner"></div> Procesando...';
         });
 
-        // Prepare metadata
-        const metadata = {
-            type: 'package',
-            userId: userData.id,
+        // Prepare request data
+        const requestData = {
+            title: packageData.title,
+            price: packageData.price,
+            quantity: 1,
             packageId: packageData.id,
-            packageName: packageData.title,
-            packagePrice: packageData.price
+            userId: userId,
+            isTrial: packageData.id === 'pkg-trial'
         };
 
-        // Create MercadoPago preference
+        // Create payment preference
         const response = await fetch('http://localhost:5000/api/payments/create_preference', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
-            body: JSON.stringify({
-                title: packageData.title,
-                price: packageData.price,
-                quantity: 1,
-                external_reference: JSON.stringify(metadata)
-            })
+            body: JSON.stringify(requestData)
         });
 
-        const responseData = await response.json();
-        
         if (!response.ok) {
-            // Check for trial restriction error
-            if (responseData.code === 'TRIAL_ALREADY_PURCHASED') {
-                showPackageModal('Clase de Prueba No Disponible', responseData.error);
-            } else {
-                throw new Error(responseData.error || 'Error al crear la preferencia de pago');
-            }
-            
-            // Re-enable buttons
-            buttons.forEach(btn => {
-                btn.disabled = false;
-                btn.innerHTML = 'Comprar →';
-            });
-            return;
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'No se pudo crear la preferencia');
         }
 
-        console.log('Preference created:', responseData);
-
-        // Redirect to MercadoPago checkout
-        window.location.href = responseData.init_point;
+        const { init_point } = await response.json();
+        window.location.href = init_point;
 
     } catch (error) {
         console.error('Error creating payment preference:', error);
         showPackageModal('Error', error.message || 'Error al procesar el pago. Por favor, intenta nuevamente.');
         
         // Re-enable buttons
-        const buttons = document.querySelectorAll('.package-button');
+        const buttons = document.querySelectorAll('.btn-comprar');
         buttons.forEach(btn => {
             btn.disabled = false;
             btn.innerHTML = 'Comprar →';

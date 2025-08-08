@@ -495,13 +495,9 @@ exports.refreshToken = async (req, res) => {
 // GET USER DASHBOARD DATA
 exports.getUserDashboard = async (req, res) => {
     try {
-        const userId = req.params.userId || req.user.id;
-
-        // Users can only view their own dashboard unless they're admin
-        if (req.user.role !== 'admin' && userId !== req.user.id) {
-            return res.status(403).json({ error: 'Not authorized' });
-        }
-
+        const userId = req.params.id;
+        
+        // Get user details
         const user = await User.findById(userId).select('-password');
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
@@ -514,71 +510,45 @@ exports.getUserDashboard = async (req, res) => {
             creditsLeft: { $gt: 0 }
         }).populate('packageId', 'name creditCount validDays price');
 
-        // Get upcoming reservations
-        const upcomingReservations = await Reservation.find({ userId })
-            .populate({
-                path: 'sessionId',
-                match: { startsAt: { $gt: new Date() } },
-                populate: {
-                    path: 'classTypeId instructorId',
-                    select: 'name description level name bio'
-                }
-            })
-            .sort({ 'sessionId.startsAt': 1 })
-            .limit(5);
-
-        // Filter valid reservations
-        const validUpcomingReservations = upcomingReservations.filter(r => r.sessionId);
-
-        // Get recent purchase history
-        const recentPurchases = await Purchase.find({ userId })
-            .populate('packageId', 'name creditCount price')
-            .sort({ boughtAt: -1 })
-            .limit(3);
-
-        // Get user statistics
-        const totalPurchases = await Purchase.countDocuments({ userId });
-        const totalReservations = await Reservation.countDocuments({ userId });
-        
-        // Calculate total spent
-        const spendingData = await Purchase.aggregate([
-            { $match: { userId: user._id } },
-            {
-                $lookup: {
-                    from: 'packages',
-                    localField: 'packageId',
-                    foreignField: '_id',
-                    as: 'package'
-                }
-            },
-            { $unwind: '$package' },
-            {
-                $group: {
-                    _id: null,
-                    totalSpent: { $sum: '$package.price' }
-                }
+        // Get upcoming reservations - EXCLUDE CANCELLED ONES
+        const upcomingReservations = await Reservation.find({
+            userId,
+            // Only get confirmed reservations (not cancelled)
+            status: { $ne: 'cancelled' },  // This excludes cancelled reservations
+            paymentStatus: 'completed'
+        })
+        .populate({
+            path: 'sessionId',
+            match: { startsAt: { $gt: new Date() } }, // Only future sessions
+            populate: {
+                path: 'classTypeId instructorId',
+                select: 'name description level bio'
             }
-        ]);
+        })
+        .sort({ 'sessionId.startsAt': 1 })
+        .limit(5);
 
-        const totalSpent = spendingData[0]?.totalSpent || 0;
+        // Filter out null sessionId (past sessions)
+        const validUpcomingReservations = upcomingReservations.filter(r => r.sessionId !== null);
+
+        // Get statistics
+        const totalReservations = await Reservation.countDocuments({ 
+            userId,
+            status: { $ne: 'cancelled' }, // Don't count cancelled reservations
+            paymentStatus: 'completed'
+        });
+        
+        const totalPurchases = await Purchase.countDocuments({ userId });
 
         res.json({
             status: 'success',
             data: {
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    dob: user.dob,
-                    createdAt: user.createdAt
-                },
+                user,
                 activePackage,
                 upcomingReservations: validUpcomingReservations,
-                recentPurchases,
                 statistics: {
-                    totalPurchases,
                     totalReservations,
-                    totalSpent,
+                    totalPurchases,
                     memberSince: user.createdAt
                 }
             }

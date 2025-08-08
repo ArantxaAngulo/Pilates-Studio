@@ -251,6 +251,145 @@
             animation: spin 1s linear infinite;
         }
 
+        .class-session.no-booking-allowed {
+    opacity: 0.8;
+    position: relative;
+}
+
+.class-session.no-booking-allowed::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255, 0, 0, 0.05) 10px,
+        rgba(255, 0, 0, 0.05) 20px
+    );
+    pointer-events: none;
+}
+
+/* Warning badge for non-modifiable classes */
+.warning-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: #ff9800;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 3px;
+    margin-left: 8px;
+    text-transform: uppercase;
+    cursor: help;
+}
+
+/* Cancel button disabled state */
+.cancel-btn.within-8-hours {
+    background-color: #ff5252;
+    cursor: not-allowed;
+    position: relative;
+}
+
+.cancel-btn.within-8-hours:hover::after {
+    content: 'Sin reembolso';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    margin-bottom: 5px;
+}
+
+/* Time until class indicator */
+.time-until-class {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 10px;
+}
+
+.time-until-class.critical {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef5350;
+}
+
+.time-until-class.warning {
+    background-color: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ff9800;
+}
+
+.time-until-class.safe {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #66bb6a;
+}
+
+/* Refund status indicators */
+.refund-status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.refund-status.refunded {
+    background-color: #4caf50;
+    color: white;
+}
+
+.refund-status.not-eligible {
+    background-color: #f44336;
+    color: white;
+}
+
+.refund-status.pending {
+    background-color: #2196f3;
+    color: white;
+}
+
+.refund-status.failed {
+    background-color: #ff9800;
+    color: white;
+}
+
+/* Alert for 8-hour rule */
+.eight-hour-alert {
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.eight-hour-alert::before {
+    content: '⚠️';
+    font-size: 20px;
+    margin-right: 10px;
+}
+
+.eight-hour-alert strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }

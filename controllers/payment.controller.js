@@ -91,14 +91,21 @@ exports.createPreference = async (req, res) => {
       },
       notification_url: 'http://localhost:5000/api/payments/webhook',
       auto_return: 'approved',
-      external_reference: external_reference || '',
-      statement_descriptor: 'PILATES STUDIO',
-      payment_methods: {
-        excluded_payment_types: [],
-        installments: 1
-      },
-      binary_mode: true
-    };
+      external_reference: JSON.stringify({
+          type: 'package',
+          userId: req.user?.id || userId,
+          packageId: req.body.packageId,
+          packageName: title,
+          packagePrice: price,
+          isTrial: req.body.isTrial
+        }),
+        statement_descriptor: 'PILATES STUDIO',
+        payment_methods: {
+          excluded_payment_types: [],
+          installments: 1
+        },
+        binary_mode: true
+      };
 
     console.log('Preference data to send:', JSON.stringify(preferenceData, null, 2));
     console.log('Creating preference with MercadoPago...');

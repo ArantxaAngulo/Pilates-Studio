@@ -382,11 +382,14 @@ async function changeMonth(direction) {
     await initializeCalendar();
 }
 
-// Updated handleReservation function
+// Updated handleReservation function with 8-hour check
 async function handleReservation() {
     const token = localStorage.getItem('token');
     if (!token) {
-        sessionStorage.setItem('intendedAction', JSON.stringify({ action: 'makeReservation', sessionId: selectedSession?._id }));
+        sessionStorage.setItem('intendedAction', JSON.stringify({ 
+            action: 'makeReservation', 
+            sessionId: selectedSession?._id 
+        }));
         window.location.href = 'login.html';
         return;
     }
@@ -396,11 +399,32 @@ async function handleReservation() {
         return;
     }
     
+    // Check 8-hour rule
+    if (isWithin8Hours(selectedSession.startsAt)) {
+        showAlert('No se pueden hacer reservas con menos de 8 horas de anticipación', 'error');
+        return;
+    }
+    
     try {
         const userId = getUserIdFromToken();
         
+        // Check eligibility from backend
+        const eligibilityResponse = await fetch(`http://localhost:5000/api/reservations/eligibility/${selectedSession._id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const eligibility = await eligibilityResponse.json();
+        
+        if (!eligibility.canBook) {
+            showAlert(eligibility.message || 'No puedes reservar esta clase', 'error');
+            return;
+        }
+        
+        // Continue with existing reservation logic...
         if (userActivePackage && userActivePackage.creditsLeft > 0) {
-            // Package flow - use credits
+            // Package flow
             const reservationResponse = await apiService.reservations.create({
                 userId,
                 sessionId: selectedSession._id,
@@ -408,61 +432,138 @@ async function handleReservation() {
                 paymentMethod: 'package'
             });
 
-            if (reservationResponse.status === 'success' && reservationResponse.data.reservation) {
-                showAlert('¡Clase reservada con éxito! Se ha usado un crédito de tu paquete.', 'success');
+            if (reservationResponse.status === 'success') {
+                showAlert('¡Clase reservada con éxito!', 'success');
                 userActivePackage.creditsLeft--;
                 updateReservationUI();
                 selectedSession.reservedCount++;
                 updateSessionDetails();
             } else {
-                throw new Error(reservationResponse.message || 'Error al reservar la clase con paquete.');
+                throw new Error(reservationResponse.message || 'Error al reservar');
             }
-
         } else {
             // Single class payment flow
             const confirmPayment = confirm(`Esta clase tiene un costo de $270 MXN. ¿Deseas continuar con el pago?`);
-            if (!confirmPayment) return;
-            
-            // Step 1: Request to initiate single class reservation (no DB reservation yet, just validation)
-            const initiateReservationResponse = await apiService.reservations.create({
-                userId,
-                sessionId: selectedSession._id,
-                paymentMethod: 'single_class'
-            });
-
-            if (initiateReservationResponse.status === 'initiate_payment' && initiateReservationResponse.data) {
-                const { userId: respUserId, sessionId: respSessionId, singleClassPrice, classSessionName } = initiateReservationResponse.data;
-
-                // Step 2: Create MercadoPago preference using the data from step 1
-                const paymentPreferenceResponse = await fetch('http://localhost:5000/api/payments/create_single_class_preference', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        userId: respUserId,
-                        sessionId: respSessionId,
-                        singleClassPrice: singleClassPrice,
-                        classSessionName: classSessionName
-                    })
-                });
-                
-                if (paymentPreferenceResponse.ok) {
-                    const paymentData = await paymentPreferenceResponse.json();
-                    window.location.href = paymentData.init_point;
-                } else {
-                    const errorData = await paymentPreferenceResponse.json();
-                    throw new Error(errorData.error || 'Error al crear la preferencia de pago de MercadoPago.');
-                }
-            } else {
-                throw new Error(initiateReservationResponse.message || 'No se pudo iniciar la reservación para el pago.');
+            if (confirmPayment) {
+                // Redirect to payment...
+                await processSingleClassPayment(selectedSession._id, userId);
             }
         }
     } catch (error) {
-        console.error('Reservation error:', error);
-        showAlert(error.message || 'Error al reservar la clase', 'error');
+        console.error('Error making reservation:', error);
+        showAlert(error.message || 'Error al procesar la reserva', 'error');
     }
+}
+
+async function cancelReservation(reservationId) {
+    try {
+        // Get reservation details first
+        const reservationResponse = await fetch(`http://localhost:5000/api/reservations/${reservationId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!reservationResponse.ok) {
+            throw new Error('No se pudo obtener información de la reserva');
+        }
+        
+        const reservationData = await reservationResponse.json();
+        const reservation = reservationData.data.reservation;
+        
+        // Check if within 8 hours
+        const within8Hours = isWithin8Hours(reservation.sessionId.startsAt);
+        
+        let confirmMessage = '¿Estás seguro de que deseas cancelar esta reserva?';
+        
+        if (within8Hours) {
+            confirmMessage = '⚠️ ADVERTENCIA: Estás cancelando con menos de 8 horas de anticipación. ' +
+                            'NO se reembolsarán créditos ni dinero. ¿Deseas continuar?';
+        } else {
+            if (reservation.paymentMethod === 'package') {
+                confirmMessage = '¿Estás seguro de que deseas cancelar esta reserva? Tu crédito será reembolsado.';
+            } else {
+                confirmMessage = '¿Estás seguro de que deseas cancelar esta reserva? ' +
+                               'El reembolso se procesará en 5-10 días hábiles.';
+            }
+        }
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        // Proceed with cancellation
+        const response = await fetch(`http://localhost:5000/api/reservations/${reservationId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert(result.message || 'Reserva cancelada exitosamente', 'success');
+            // Reload reservations
+            if (typeof loadUserReservations === 'function') {
+                loadUserReservations();
+            }
+            if (typeof loadDashboardData === 'function') {
+                loadDashboardData();
+            }
+        } else {
+            throw new Error(result.error || 'Error al cancelar la reserva');
+        }
+        
+    } catch (error) {
+        console.error('Error cancelling reservation:', error);
+        showAlert(error.message || 'Error al cancelar la reserva', 'error');
+    }
+}
+
+// Helper function to display time remaining until class
+function getTimeUntilClass(classStartTime) {
+    const now = new Date();
+    const classStart = new Date(classStartTime);
+    const hoursUntilClass = (classStart - now) / (1000 * 60 * 60);
+    
+    if (hoursUntilClass < 0) {
+        return 'Clase ya iniciada';
+    } else if (hoursUntilClass < 1) {
+        const minutes = Math.floor(hoursUntilClass * 60);
+        return `${minutes} minutos`;
+    } else if (hoursUntilClass < 24) {
+        const hours = Math.floor(hoursUntilClass);
+        const minutes = Math.floor((hoursUntilClass - hours) * 60);
+        return `${hours}h ${minutes}min`;
+    } else {
+        const days = Math.floor(hoursUntilClass / 24);
+        const hours = Math.floor(hoursUntilClass % 24);
+        return `${days} días, ${hours} horas`;
+    }
+}
+
+// Visual indicator for classes within 8-hour window
+function updateClassAvailabilityIndicators() {
+    const classElements = document.querySelectorAll('.class-session');
+    
+    classElements.forEach(element => {
+        const startTime = element.dataset.startTime;
+        if (startTime) {
+            const within8Hours = isWithin8Hours(startTime);
+            
+            if (within8Hours) {
+                element.classList.add('no-booking-allowed');
+                
+                // Add warning badge
+                const warningBadge = document.createElement('span');
+                warningBadge.className = 'warning-badge';
+                warningBadge.textContent = 'No modificable';
+                warningBadge.title = 'No se pueden hacer reservas o cancelaciones con menos de 8 horas de anticipación';
+                element.appendChild(warningBadge);
+            }
+        }
+    });
 }
 
 // Update the reserve button UI
@@ -518,3 +619,11 @@ style.textContent = `
     .time-slot-item.disabled:hover { background-color: #f3f3f3; }
 `;
 document.head.appendChild(style);
+
+// Check if action is within 8 hours of class
+function isWithin8Hours(classStartTime) {
+    const now = new Date();
+    const classStart = new Date(classStartTime);
+    const hoursUntilClass = (classStart - now) / (1000 * 60 * 60);
+    return hoursUntilClass < 8;
+}

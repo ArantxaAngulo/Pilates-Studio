@@ -60,4 +60,7 @@ function requireAdmin(req, res, next) {
     next();
 }
 
+// Check reservation eligibility (can book/cancel)
+router.get('/eligibility/:sessionId', verifyToken, reservationsController.checkReservationEligibility);
+
 module.exports = router;
