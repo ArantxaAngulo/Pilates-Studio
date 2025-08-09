@@ -503,18 +503,20 @@ exports.getUserDashboard = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Get active package
-        const activePackage = await Purchase.findOne({
+        // Get ALL active packages (not just one)
+        const activePackages = await Purchase.find({
             userId,
             expiresAt: { $gt: new Date() },
             creditsLeft: { $gt: 0 }
-        }).populate('packageId', 'name creditCount validDays price');
+        })
+        .populate('packageId', 'name creditCount validDays price')
+        .sort({ boughtAt: -1 }); // Most recent first
 
         // Get upcoming reservations - EXCLUDE CANCELLED ONES
         const upcomingReservations = await Reservation.find({
             userId,
             // Only get confirmed reservations (not cancelled)
-            status: { $ne: 'cancelled' },  // This excludes cancelled reservations
+            status: { $ne: 'cancelled' },
             paymentStatus: 'completed'
         })
         .populate({
@@ -534,21 +536,27 @@ exports.getUserDashboard = async (req, res) => {
         // Get statistics
         const totalReservations = await Reservation.countDocuments({ 
             userId,
-            status: { $ne: 'cancelled' }, // Don't count cancelled reservations
+            status: { $ne: 'cancelled' },
             paymentStatus: 'completed'
         });
         
         const totalPurchases = await Purchase.countDocuments({ userId });
+        
+        // Calculate total available credits across all packages
+        const totalCreditsAvailable = activePackages.reduce((sum, pkg) => sum + pkg.creditsLeft, 0);
 
         res.json({
             status: 'success',
             data: {
                 user,
-                activePackage,
+                activePackages, // Now returns array of ALL active packages
+                activePackage: activePackages[0] || null, // Keep for backward compatibility
                 upcomingReservations: validUpcomingReservations,
                 statistics: {
                     totalReservations,
                     totalPurchases,
+                    totalCreditsAvailable,
+                    activePackagesCount: activePackages.length,
                     memberSince: user.createdAt
                 }
             }

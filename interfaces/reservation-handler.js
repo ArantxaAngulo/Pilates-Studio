@@ -6,7 +6,8 @@ let selectedSession = null;
 let availableSessions = {};
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
-let userActivePackage = null;
+let userActivePackages = []; // Changed from userActivePackage to userActivePackages (array)
+let totalUserCredits = 0; // Add total credits tracker
 
 // Initialize reservation system
 document.addEventListener('DOMContentLoaded', function() {
@@ -20,11 +21,11 @@ async function initializeReservationSystem() {
         // Check if user is logged in
         const token = localStorage.getItem('token');
         if (token) {
-            // Get user's active package
+            // Get user's active packages (plural)
             const userId = getUserIdFromToken();
             if (userId) {
-                // This will fetch the package and store it in the global `userActivePackage` variable
-                await checkUserActivePackage(userId);
+                // This will fetch ALL packages and calculate total credits
+                await checkUserActivePackages(userId);
             }
         }
         
@@ -34,7 +35,7 @@ async function initializeReservationSystem() {
         // Add event listeners
         setupEventListeners();
 
-        // Update the UI based on login status and package
+        // Update the UI based on login status and packages
         updateReservationUI();
         
     } catch (error) {
@@ -57,27 +58,50 @@ function getUserIdFromToken() {
 }
 
 // Check user's active package
-async function checkUserActivePackage(userId) {
+async function checkUserActivePackages(userId) {
     try {
         const token = localStorage.getItem('token');
         if (!token || !userId) {
-            userActivePackage = null;
+            userActivePackages = [];
+            totalUserCredits = 0;
             return null;
         }
 
-        const response = await apiService.purchases.getActivePackage(userId);
-        userActivePackage = response.data.activePackage || null;
+        // Get ALL active packages, not just one
+        const response = await fetch(`http://localhost:5000/api/purchases/user/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            console.log('No active packages found or user not authorized.');
+            userActivePackages = [];
+            totalUserCredits = 0;
+            return null;
+        }
+
+        const data = await response.json();
+        const allPurchases = data.data.purchases || [];
         
-        console.log('Active package:', userActivePackage);
-        return userActivePackage;
+        // Filter only active packages (not expired and with credits)
+        userActivePackages = allPurchases.filter(purchase => {
+            const isActive = new Date(purchase.expiresAt) > new Date() && purchase.creditsLeft > 0;
+            return isActive;
+        });
+
+        // Calculate total credits
+        totalUserCredits = userActivePackages.reduce((sum, pkg) => sum + pkg.creditsLeft, 0);
+        
+        console.log('Active packages:', userActivePackages);
+        console.log('Total credits available:', totalUserCredits);
+        
+        return userActivePackages;
 
     } catch (error) {
-        if (error.message.includes('404') || error.message.includes('403')) {
-            console.log('No active package found or user not authorized.');
-        } else {
-            console.error('Error checking active package:', error);
-        }
-        userActivePackage = null;
+        console.error('Error checking active packages:', error);
+        userActivePackages = [];
+        totalUserCredits = 0;
         return null;
     }
 }
@@ -422,30 +446,39 @@ async function handleReservation() {
             return;
         }
         
-        // Continue with existing reservation logic...
-        if (userActivePackage && userActivePackage.creditsLeft > 0) {
-            // Package flow
-            const reservationResponse = await apiService.reservations.create({
-                userId,
-                sessionId: selectedSession._id,
-                purchaseId: userActivePackage._id,
-                paymentMethod: 'package'
-            });
+        // Check if user has ANY credits available (from any package)
+        if (totalUserCredits > 0 && userActivePackages.length > 0) {
+            // Find the first package with available credits (oldest first)
+            const packageToUse = userActivePackages.find(pkg => pkg.creditsLeft > 0);
+            
+            if (packageToUse) {
+                // Package reservation flow - use credits from the selected package
+                const reservationResponse = await apiService.reservations.create({
+                    userId,
+                    sessionId: selectedSession._id,
+                    purchaseId: packageToUse._id,
+                    paymentMethod: 'package'
+                });
 
-            if (reservationResponse.status === 'success') {
-                showAlert('¡Clase reservada con éxito!', 'success');
-                userActivePackage.creditsLeft--;
-                updateReservationUI();
-                selectedSession.reservedCount++;
-                updateSessionDetails();
-            } else {
-                throw new Error(reservationResponse.message || 'Error al reservar');
+                if (reservationResponse.status === 'success') {
+                    showAlert('¡Clase reservada con éxito!', 'success');
+                    
+                    // Update local credit counts
+                    packageToUse.creditsLeft--;
+                    totalUserCredits--;
+                    
+                    // Update UI
+                    updateReservationUI();
+                    selectedSession.reservedCount++;
+                    updateSessionDetails();
+                } else {
+                    throw new Error(reservationResponse.message || 'Error al reservar');
+                }
             }
         } else {
-            // Single class payment flow
+            // Single class payment flow - no credits available
             const confirmPayment = confirm(`Esta clase tiene un costo de $270 MXN. ¿Deseas continuar con el pago?`);
             if (confirmPayment) {
-                // Redirect to payment...
                 await processSingleClassPayment(selectedSession._id, userId);
             }
         }
@@ -571,8 +604,14 @@ function updateReservationUI() {
     const reserveBtn = document.querySelector('.btn-reserve');
     if (!reserveBtn) return;
     
-    if (userActivePackage && userActivePackage.creditsLeft > 0) {
-        reserveBtn.textContent = `Reservar (${userActivePackage.creditsLeft} créditos restantes)`;
+    if (totalUserCredits > 0) {
+        // Show total credits from all packages
+        const packageCount = userActivePackages.length;
+        if (packageCount > 1) {
+            reserveBtn.textContent = `Reservar (${totalUserCredits} créditos totales - ${packageCount} paquetes)`;
+        } else {
+            reserveBtn.textContent = `Reservar (${totalUserCredits} ${totalUserCredits === 1 ? 'crédito' : 'créditos'} restantes)`;
+        }
     } else {
         reserveBtn.textContent = 'Reservar ($270 MXN)';
     }
@@ -626,4 +665,57 @@ function isWithin8Hours(classStartTime) {
     const classStart = new Date(classStartTime);
     const hoursUntilClass = (classStart - now) / (1000 * 60 * 60);
     return hoursUntilClass < 8;
+}
+
+async function processSingleClassPayment(sessionId, userId) {
+    try {
+        const token = localStorage.getItem('token');
+        
+        // Get session details for the payment
+        const sessionResponse = await fetch(`http://localhost:5000/api/class-sessions/${sessionId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!sessionResponse.ok) {
+            throw new Error('No se pudo obtener información de la clase');
+        }
+        
+        const sessionData = await sessionResponse.json();
+        const classSession = sessionData.data.classSession;
+        
+        // Prepare data for MercadoPago payment
+        const singleClassPrice = 270; // Fixed price for single class
+        const classSessionName = classSession.classTypeId?.name || 'Clase de Pilates';
+        
+        // Create MercadoPago preference for single class payment
+        const paymentResponse = await fetch('http://localhost:5000/api/payments/create_single_class_preference', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                userId: userId,
+                sessionId: sessionId,
+                singleClassPrice: singleClassPrice,
+                classSessionName: classSessionName
+            })
+        });
+        
+        if (!paymentResponse.ok) {
+            const errorData = await paymentResponse.json();
+            throw new Error(errorData.error || 'Error al crear la preferencia de pago');
+        }
+        
+        const paymentData = await paymentResponse.json();
+        
+        // Redirect to MercadoPago checkout
+        window.location.href = paymentData.init_point;
+        
+    } catch (error) {
+        console.error('Error processing single class payment:', error);
+        showAlert(error.message || 'Error al procesar el pago', 'error');
+    }
 }

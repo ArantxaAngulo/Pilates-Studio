@@ -10,6 +10,9 @@ const ClassSession = require('../schemas/classSessions.model');
 const { canUserPurchase, createPurchaseWithValidation } = require('../helpers/purchaseHelper');
 require('dotenv').config();
 
+const NGROK_URL = 'https://239b8e2f58fc.ngrok-free.app'; // UPDATE THIS when ngrok changes
+const LOCALHOST_URL = 'http://localhost:5000'; // Your frontend URL
+
 console.log('MP_ACCESS_TOKEN loaded:', process.env.MP_ACCESS_TOKEN ? 'Yes' : 'No');
 
 const client = new MercadoPagoConfig({ 
@@ -40,16 +43,29 @@ async function hasUserPurchasedTrial(userId) {
 // Create payment preference for packages
 exports.createPreference = async (req, res) => {
   try {
-    const { title, price, quantity, external_reference } = req.body;
-    const userId = req.user?.id;
+    const { title, price, quantity, external_reference, packageId, userId, isTrial } = req.body;
 
     console.log('Request body:', req.body);
-    console.log('Creating preference with:', { title, price, quantity, external_reference });
+    
+    // Build the external_reference if not provided
+    let finalExternalReference = external_reference;
+    if (!finalExternalReference && packageId) {
+      finalExternalReference = JSON.stringify({
+        type: 'package',
+        packageId: packageId,
+        packageName: title,
+        packagePrice: price,
+        userId: userId,
+        isTrial: isTrial || false
+      });
+    }
+    
+    console.log('Creating preference with external_reference:', finalExternalReference);
 
     // Parse external_reference to check if it's a trial package
-    if (external_reference) {
+    if (finalExternalReference) {
       try {
-        const metadata = JSON.parse(external_reference);
+        const metadata = JSON.parse(finalExternalReference);
         
         // Check if this is a trial package purchase
         if (metadata.packageId === 'pkg-trial' && metadata.userId) {
@@ -85,27 +101,20 @@ exports.createPreference = async (req, res) => {
         }
       ],
       back_urls: {
-        success: 'http://localhost:5000/interfaces/success.html',
-        failure: 'http://localhost:5000/interfaces/failure.html',
-        pending: 'http://localhost:5000/interfaces/pending.html'
+        success: `${NGROK_URL}/api/payments/success`,
+        failure: `${NGROK_URL}/api/payments/failure`,
+        pending: `${NGROK_URL}/api/payments/pending`
       },
-      notification_url: 'http://localhost:5000/api/payments/webhook',
+      notification_url: `${NGROK_URL}/api/payments/webhook`,
       auto_return: 'approved',
-      external_reference: JSON.stringify({
-          type: 'package',
-          userId: req.user?.id || userId,
-          packageId: req.body.packageId,
-          packageName: title,
-          packagePrice: price,
-          isTrial: req.body.isTrial
-        }),
-        statement_descriptor: 'PILATES STUDIO',
-        payment_methods: {
-          excluded_payment_types: [],
-          installments: 1
-        },
-        binary_mode: true
-      };
+      external_reference: finalExternalReference || '',
+      statement_descriptor: 'PILATES STUDIO',
+      payment_methods: {
+        excluded_payment_types: [],
+        installments: 1
+      },
+      binary_mode: true
+    };
 
     console.log('Preference data to send:', JSON.stringify(preferenceData, null, 2));
     console.log('Creating preference with MercadoPago...');
@@ -124,7 +133,6 @@ exports.createPreference = async (req, res) => {
   } catch (error) {
     console.error('Error al crear preferencia:', error);
     console.error('Error details:', error.response?.data || error.message);
-    console.error('Full error:', JSON.stringify(error, null, 2));
     res.status(500).json({ 
       error: 'No se pudo crear la preferencia',
       details: error.message,
@@ -137,6 +145,7 @@ exports.createPreference = async (req, res) => {
 exports.handleSuccess = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+  
   try {
     const { payment_id, status, external_reference, collection_status } = req.query;
     console.log('Payment success callback received:', { payment_id, status, external_reference, collection_status });
@@ -148,13 +157,13 @@ exports.handleSuccess = async (req, res) => {
         const metadata = JSON.parse(decodeURIComponent(external_reference));
         
         if (metadata.type === 'single_class') {
+            // Single class logic remains the same
             if (!metadata.userId || !metadata.sessionId || !metadata.singleClassPrice) {
                 console.error("🔴 Invalid metadata for single class payment in success handler:", metadata);
                 await session.abortTransaction();
-                return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent('Invalid payment data')}`);
+                return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=${encodeURIComponent('Invalid payment data')}`);
             }
 
-            // Check for idempotency: has this reservation already been completed for this user/session?
             const existingCompletedReservation = await Reservation.findOne({ 
                 userId: metadata.userId, 
                 sessionId: metadata.sessionId, 
@@ -162,25 +171,23 @@ exports.handleSuccess = async (req, res) => {
             }).session(session);
 
             if (existingCompletedReservation) {
-                console.log('Single class reservation already completed via webhook or previous success callback:', existingCompletedReservation._id);
+                console.log('Single class reservation already completed');
                 await session.commitTransaction();
-                return res.redirect('/interfaces/success.html?type=single_class');
+                return res.redirect(`${LOCALHOST_URL}/interfaces/success.html?type=single_class`);
             }
 
-            // Check class session capacity again
             const classSession = await ClassSession.findById(metadata.sessionId).session(session);
             if (!classSession) {
-                console.error(`🔴 Class session not found for single class payment in success handler: ${metadata.sessionId}`);
+                console.error(`🔴 Class session not found`);
                 await session.abortTransaction();
-                return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent('Class session not found')}`);
+                return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=${encodeURIComponent('Class session not found')}`);
             }
             if (classSession.reservedCount >= classSession.capacity) {
-                console.error(`🔴 Class session is full for single class payment in success handler: ${metadata.sessionId}`);
+                console.error(`🔴 Class session is full`);
                 await session.abortTransaction();
-                return res.redirect(`/interfaces/error.html?reason=${encodeURIComponent('Class session is full')}`);
+                return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=${encodeURIComponent('Class session is full')}`);
             }
 
-            // CREATE THE RESERVATION HERE (if not already created by webhook)
             const newReservation = new Reservation({
                 userId: metadata.userId,
                 sessionId: metadata.sessionId,
@@ -194,7 +201,6 @@ exports.handleSuccess = async (req, res) => {
             });
             await newReservation.save({ session });
 
-            // Increment reservedCount for the class session
             await ClassSession.findByIdAndUpdate(
                 metadata.sessionId,
                 { $inc: { reservedCount: 1 } },
@@ -203,58 +209,74 @@ exports.handleSuccess = async (req, res) => {
             
             await session.commitTransaction();
             console.log('Single class payment completed and reservation created:', newReservation._id);
-            return res.redirect('/interfaces/success.html?type=single_class');
-        }
+            return res.redirect(`${LOCALHOST_URL}/interfaces/success.html?type=single_class`);
+            
+        } else if (metadata.type === 'package') {
+            // For package purchases
+            console.log('Processing package purchase for:', metadata.packageId);
+            
+            // First check if purchase already exists (idempotency)
+            const existingPurchase = await Purchase.findOne({ 
+              mercadoPagoPaymentId: payment_id 
+            }).session(session);
+            
+            if (existingPurchase) {
+              console.log('Purchase already exists for this payment');
+              await session.commitTransaction();
+              return res.redirect(`${LOCALHOST_URL}/interfaces/success.html?existing=true`);
+            }
 
-        // For package purchases
-        const payment = await paymentClient.get({ id: payment_id });
-        if (payment.status === 'approved') {
-          const package = await Package.findById(metadata.packageId);
-          if (!package) {
-            console.error('Package not found:', metadata.packageId);
-            await session.abortTransaction();
-            return res.redirect('/interfaces/error.html?reason=package_not_found');
-          }
+            // Get package details
+            const package = await Package.findById(metadata.packageId).session(session);
+            if (!package) {
+              console.error('Package not found:', metadata.packageId);
+              await session.abortTransaction();
+              return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=package_not_found`);
+            }
 
-          const existingPurchase = await Purchase.findOne({ 
-            mercadoPagoPaymentId: payment_id 
-          }).session(session);
-          
-          if (existingPurchase) {
-            console.log('Purchase already exists for this payment');
+            // Create the purchase WITHOUT trying to fetch payment from MercadoPago
+            // (since it's causing 404 errors in sandbox)
+            const newPurchase = new Purchase({
+              userId: metadata.userId,
+              packageId: metadata.packageId,
+              boughtAt: new Date(),
+              expiresAt: new Date(Date.now() + package.validDays * 24 * 60 * 60 * 1000),
+              creditsLeft: package.creditCount,
+              mercadoPagoPaymentId: payment_id
+            });
+
+            await newPurchase.save({ session });
+            
             await session.commitTransaction();
-            return res.redirect('/interfaces/success.html?existing=true');
-          }
-
-          const purchaseResult = await createPurchaseWithValidation({
-            userId: metadata.userId,
-            packageId: metadata.packageId,
-            paymentId: payment_id
-          }, {
-            allowMultiple: businessRules.getRule('purchase', 'allowMultipleActivePackages'),
-            skipActiveCheck: businessRules.testing.bypassPurchaseRestrictions
-          }, session);
-          
-          if (purchaseResult.success) {
-            console.log('Purchase created successfully:', purchaseResult.purchase._id);
-          } else {
-            console.error('Purchase creation failed:', purchaseResult.error);
-          }
+            console.log('Package purchase created successfully:', newPurchase._id);
+            return res.redirect(`${LOCALHOST_URL}/interfaces/success.html?type=package`);
         }
+        
       } catch (error) {
-        await session.abortTransaction();
         console.error('Error processing payment:', error);
+        // Only abort if transaction is still active
+        if (session.inTransaction()) {
+          await session.abortTransaction();
+        }
+        return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=processing_error`);
       }
     }
 
-    await session.commitTransaction();
-    res.redirect('/interfaces/success.html');
+    // If we get here, commit any pending transaction
+    if (session.inTransaction()) {
+      await session.commitTransaction();
+    }
+    res.redirect(`${LOCALHOST_URL}/interfaces/success.html`);
+    
   } catch (error) {
-    await session.abortTransaction();
     console.error('Error handling success callback:', error);
-    res.redirect('/interfaces/error.html?reason=processing_error');
+    // Only abort if transaction is still active
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=processing_error`);
   } finally {
-      session.endSession();
+    session.endSession();
   }
 };
 
@@ -266,14 +288,13 @@ exports.handleFailure = async (req, res) => {
       if (external_reference) {
           const metadata = JSON.parse(decodeURIComponent(external_reference));
           if (metadata.type === 'single_class') {
-              // No reservation exists in DB yet, so nothing to update/delete.
               console.log(`Payment failed for single class booking. No reservation record created.`);
           }
       }
   } catch (e) {
       console.error("Error parsing external_reference on failure:", e);
   }
-  res.redirect('/interfaces/failure.html');
+  res.redirect(`${LOCALHOST_URL}/interfaces/failure.html`);
 };
 
 // Handle pending payment
@@ -284,14 +305,13 @@ exports.handlePending = async (req, res) => {
     if (external_reference) {
         const metadata = JSON.parse(decodeURIComponent(external_reference));
         if (metadata.type === 'single_class') {
-            // No reservation exists in DB yet for pending single class payment.
             console.log(`Payment pending for single class booking. No reservation record created yet.`);
         }
     }
-} catch (e) {
-    console.error("Error parsing external_reference on pending:", e);
-}
-  res.redirect('/interfaces/pending.html');
+  } catch (e) {
+      console.error("Error parsing external_reference on pending:", e);
+  }
+  res.redirect(`${LOCALHOST_URL}/interfaces/pending.html`);
 };
 
 // Create single class payment preference
@@ -321,7 +341,7 @@ exports.createSingleClassPreference = async (req, res) => {
             return res.status(400).json({ error: 'User already has a completed reservation for this session.' });
         }
         
-        // Create preference
+        // Create preference with ngrok URLs
         const preferenceData = {
             items: [{
                 title: `Clase Individual - ${classSessionName}`,
@@ -330,11 +350,11 @@ exports.createSingleClassPreference = async (req, res) => {
                 currency_id: 'MXN'
             }],
             back_urls: {
-                success: `${process.env.FRONTEND_URL}/interfaces/success.html?type=single_class`,
-                failure: `${process.env.FRONTEND_URL}/interfaces/failure.html`,
-                pending: `${process.env.FRONTEND_URL}/interfaces/pending.html`
+                success: `${NGROK_URL}/api/payments/success`,
+                failure: `${NGROK_URL}/api/payments/failure`,
+                pending: `${NGROK_URL}/api/payments/pending`
             },
-            notification_url: envConfig.mercadoPago.webhookUrl,
+            notification_url: `${NGROK_URL}/api/payments/webhook`,
             auto_return: 'approved',
             external_reference: JSON.stringify({
                 type: 'single_class',

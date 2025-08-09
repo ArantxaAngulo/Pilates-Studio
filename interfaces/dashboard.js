@@ -43,31 +43,46 @@ async function loadDashboardData() {
             apiService.users.getDashboard(window.currentUserId)
         ]);
 
-        // If activePackage exists but packageId is not populated, fetch package details
-        if (dashboardResponse.data.activePackage && 
-            (!dashboardResponse.data.activePackage.packageId || 
-             typeof dashboardResponse.data.activePackage.packageId === 'string')) {
-            
-            try {
-                const packageId = dashboardResponse.data.activePackage.packageId || 
-                               dashboardResponse.data.activePackage._id;
-                               
-                if (packageId) {
-                    const packageResponse = await apiService.packages.getById(packageId);
-                    if (packageResponse.data.package) {
-                        dashboardResponse.data.activePackage.packageId = packageResponse.data.package;
+        // Check if we have multiple active packages
+        let activePackages = dashboardResponse.data.activePackages || dashboardResponse.data.activePackage;
+        
+        // Ensure it's always an array for consistent handling
+        if (activePackages && !Array.isArray(activePackages)) {
+            activePackages = [activePackages];
+        }
+
+        // If packages exist but packageId is not populated, fetch package details
+        if (activePackages && activePackages.length > 0) {
+            for (let i = 0; i < activePackages.length; i++) {
+                const pkg = activePackages[i];
+                if (pkg && (!pkg.packageId || typeof pkg.packageId === 'string')) {
+                    try {
+                        const packageId = pkg.packageId || pkg._id;
+                        if (packageId && typeof packageId === 'string') {
+                            const packageResponse = await apiService.packages.getById(packageId);
+                            if (packageResponse.data.package) {
+                                activePackages[i].packageId = packageResponse.data.package;
+                            }
+                        }
+                    } catch (err) {
+                        console.log('Could not fetch package details:', err);
+                        // Continue with fallback data
                     }
                 }
-            } catch (err) {
-                console.log('Could not fetch package details:', err);
-                // Continue with fallback data
             }
         }
 
+        // Calculate total credits for statistics
+        const totalCredits = activePackages ? 
+            activePackages.reduce((sum, pkg) => sum + (pkg.creditsLeft || 0), 0) : 0;
+
         // Update UI with fetched data
         updateWelcomeSection(userResponse.data.user);
-        updateStatsSection(dashboardResponse.data);
-        updateActivePackages(dashboardResponse.data.activePackage);
+        updateStatsSection({
+            ...dashboardResponse.data,
+            totalCreditsAvailable: totalCredits
+        });
+        updateActivePackages(activePackages);
         updateUpcomingReservations(dashboardResponse.data.upcomingReservations);
 
     } catch (error) {
@@ -117,16 +132,16 @@ function getMotivationalMessage() {
 function updateStatsSection(dashboardData) {
     // Total reservations
     const totalReservations = document.getElementById('totalReservations');
-    totalReservations.textContent = dashboardData.statistics.totalReservations || 0;
+    totalReservations.textContent = dashboardData.statistics?.totalReservations || 0;
     
-    // Available credits
+    // Available credits - now shows total from all packages
     const creditsAvailable = document.getElementById('creditsAvailable');
-    const credits = dashboardData.activePackage ? dashboardData.activePackage.creditsLeft : 0;
+    const credits = dashboardData.totalCreditsAvailable || 0;
     creditsAvailable.textContent = credits;
     
     // Member since (in months)
     const memberSince = document.getElementById('memberSince');
-    const joinDate = new Date(dashboardData.user.createdAt);
+    const joinDate = new Date(dashboardData.user?.createdAt || Date.now());
     const monthsDiff = getMonthsDifference(joinDate, new Date());
     memberSince.textContent = monthsDiff;
 }
@@ -139,10 +154,15 @@ function getMonthsDifference(startDate, endDate) {
 }
 
 // Update active packages section
-function updateActivePackages(activePackage) {
+function updateActivePackages(activePackages) {
     const container = document.getElementById('activePackagesContainer');
     
-    if (!activePackage) {
+    // Handle case when activePackages is a single object (backward compatibility)
+    if (activePackages && !Array.isArray(activePackages)) {
+        activePackages = [activePackages];
+    }
+    
+    if (!activePackages || activePackages.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">📦</div>
@@ -154,94 +174,125 @@ function updateActivePackages(activePackage) {
         return;
     }
 
-    // Handle different data structures - sometimes packageId is populated, sometimes it's just an ID
-    let packageName = 'Paquete';
-    let totalCredits = activePackage.creditsLeft;
+    // Calculate total credits across all packages
+    const totalCreditsAvailable = activePackages.reduce((sum, pkg) => sum + (pkg.creditsLeft || 0), 0);
     
-    // Check if packageId is populated with details
-    if (activePackage.packageId) {
-        if (typeof activePackage.packageId === 'object' && activePackage.packageId.name) {
-            packageName = activePackage.packageId.name;
-            totalCredits = activePackage.packageId.creditCount;
-        } else if (typeof activePackage.packageId === 'string') {
-            // If packageId is just a string ID, we need to fetch package details
-            // mapping based on common package IDs
-            const packageNames = {
-                'pkg-trial': 'Clase de Prueba',
-                'pkg-single': '1 Clase',
-                'pkg-3': '3 Clases',
-                'pkg-9': '9 Clases',
-                'pkg-14': '14 Clases',
-                'pkg-19': '19 Clases',
-                'pkg-24': '24 Clases',
-                'pkg-35': '35 Clases'
-            };
-            
-            const packageCredits = {
-                'pkg-trial': 1,
-                'pkg-single': 1,
-                'pkg-3': 3,
-                'pkg-9': 9,
-                'pkg-14': 14,
-                'pkg-19': 19,
-                'pkg-24': 24,
-                'pkg-35': 35
-            };
-            
-            packageName = packageNames[activePackage.packageId] || 'Paquete de Clases';
-            totalCredits = packageCredits[activePackage.packageId] || activePackage.creditsLeft;
-        }
-    }
-
-    // Calculate progress
-    const usedCredits = totalCredits - activePackage.creditsLeft;
-    const progressPercentage = (usedCredits / totalCredits) * 100;
+    // Create HTML for all active packages
+    let packagesHTML = '';
     
-    // Format expiration date
-    const expirationDate = new Date(activePackage.expiresAt);
-    const daysUntilExpiry = Math.ceil((expirationDate - new Date()) / (1000 * 60 * 60 * 24));
-    
-    // Determine if package is expiring soon
-    const isExpiringSoon = daysUntilExpiry <= 7;
-    const isLowCredits = activePackage.creditsLeft <= 2;
-    
-    container.innerHTML = `
-        <div class="package-card">
-            ${isExpiringSoon || isLowCredits ? `
-                <div class="alert alert-custom mb-3">
-                    <strong>⚠️ Atención:</strong> 
-                    ${isLowCredits ? `Solo te quedan ${activePackage.creditsLeft} ${activePackage.creditsLeft === 1 ? 'crédito' : 'créditos'}.` : ''}
-                    ${isExpiringSoon ? `Tu paquete expira en ${daysUntilExpiry} días.` : ''}
-                </div>
-            ` : ''}
-            
-            <h3 class="package-name">Paquete ${packageName}</h3>
-            
-            <div class="package-details">
-                <div class="package-info">
-                    <div class="credits-display">
-                        <span class="credits-number">${activePackage.creditsLeft}</span>
-                        <span class="credits-label">de ${totalCredits} créditos disponibles</span>
-                    </div>
-                    <div class="expiration-date">
-                        Válido hasta: ${formatDate(expirationDate)}
-                    </div>
-                    
-                    <div class="progress-bar-container">
-                        <div class="progress-bar-fill" style="width: ${100 - progressPercentage}%"></div>
-                    </div>
-                </div>
+    activePackages.forEach((activePackage, index) => {
+        // Handle different data structures
+        let packageName = 'Paquete';
+        let totalCredits = activePackage.creditsLeft;
+        
+        // Check if packageId is populated with details
+        if (activePackage.packageId) {
+            if (typeof activePackage.packageId === 'object' && activePackage.packageId.name) {
+                packageName = activePackage.packageId.name;
+                totalCredits = activePackage.packageId.creditCount;
+            } else if (typeof activePackage.packageId === 'string') {
+                // Map package IDs to names
+                const packageNames = {
+                    'pkg-trial': 'Clase de Prueba',
+                    'pkg-single': '1 Clase',
+                    'pkg-3': '3 Clases',
+                    'pkg-9': '9 Clases',
+                    'pkg-14': '14 Clases',
+                    'pkg-19': '19 Clases',
+                    'pkg-24': '24 Clases',
+                    'pkg-35': '35 Clases'
+                };
                 
-                <div class="package-actions">
-                    ${isExpiringSoon || isLowCredits ? `
-                        <a href="packages.html" class="btn-action btn-outline-custom">
-                            Renovar
-                        </a>
-                    ` : ''}
+                const packageCredits = {
+                    'pkg-trial': 1,
+                    'pkg-single': 1,
+                    'pkg-3': 3,
+                    'pkg-9': 9,
+                    'pkg-14': 14,
+                    'pkg-19': 19,
+                    'pkg-24': 24,
+                    'pkg-35': 35
+                };
+                
+                packageName = packageNames[activePackage.packageId] || 'Paquete de Clases';
+                totalCredits = packageCredits[activePackage.packageId] || activePackage.creditsLeft;
+            }
+        }
+
+        // Calculate progress
+        const usedCredits = totalCredits - activePackage.creditsLeft;
+        const progressPercentage = (usedCredits / totalCredits) * 100;
+        
+        // Format expiration date
+        const expirationDate = new Date(activePackage.expiresAt);
+        const daysUntilExpiry = Math.ceil((expirationDate - new Date()) / (1000 * 60 * 60 * 24));
+        
+        // Determine if package is expiring soon
+        const isExpiringSoon = daysUntilExpiry <= 7;
+        const isLowCredits = activePackage.creditsLeft <= 2;
+        
+        packagesHTML += `
+            <div class="package-card" style="margin-bottom: 20px;">
+                ${isExpiringSoon || isLowCredits ? `
+                    <div class="alert alert-custom mb-3">
+                        <strong>⚠️ Atención:</strong> 
+                        ${isLowCredits ? `Solo te quedan ${activePackage.creditsLeft} ${activePackage.creditsLeft === 1 ? 'crédito' : 'créditos'}.` : ''}
+                        ${isExpiringSoon ? `Tu paquete expira en ${daysUntilExpiry} días.` : ''}
+                    </div>
+                ` : ''}
+                
+                <h3 class="package-name">${packageName}</h3>
+                
+                <div class="package-details">
+                    <div class="package-info">
+                        <div class="credits-display">
+                            <span class="credits-number">${activePackage.creditsLeft}</span>
+                            <span class="credits-label">de ${totalCredits} créditos disponibles</span>
+                        </div>
+                        <div class="expiration-date">
+                            Válido hasta: ${formatDate(expirationDate)}
+                        </div>
+                        
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width: ${100 - progressPercentage}%"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
+    });
+    
+    // Add summary if there are multiple packages
+    if (activePackages.length > 1) {
+        container.innerHTML = `
+            <div class="packages-summary" style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 10px 0;">Resumen de Paquetes</h4>
+                <p style="margin: 0; font-size: 18px; font-weight: 500;">
+                    Total de créditos disponibles: <span style="color: #D4B2A7; font-size: 24px;">${totalCreditsAvailable}</span>
+                </p>
+                <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">
+                    Tienes ${activePackages.length} paquetes activos
+                </p>
+            </div>
+            ${packagesHTML}
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="packages.html" class="btn-action btn-outline-custom">
+                    Ver más paquetes
+                </a>
+            </div>
+        `;
+    } else {
+        // Single package display
+        container.innerHTML = packagesHTML + `
+            ${activePackages[0].creditsLeft <= 2 || Math.ceil((new Date(activePackages[0].expiresAt) - new Date()) / (1000 * 60 * 60 * 24)) <= 7 ? `
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="packages.html" class="btn-action btn-outline-custom">
+                        Renovar paquete
+                    </a>
+                </div>
+            ` : ''}
+        `;
+    }
 }
 
 // Update upcoming reservations section
