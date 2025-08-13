@@ -1,20 +1,6 @@
 [
   {
     "name": {
-      "first": "Andrea",
-      "last": "Martínez"
-    },
-    "bio": "Instructora certificada con más de 8 años de experiencia en Pilates. Especializada en reformer y rehabilitación postural. Le apasiona ayudar a sus estudiantes a conectar mente y cuerpo.",
-    "certifications": [
-      "Pilates Method Alliance (PMA) Certified",
-      "Reformer Specialist",
-      "Mat Pilates Instructor",
-      "Posture Restoration Specialist"
-    ],
-    "profilePictureUrl": "/images/pancakes.png"
-  },
-  {
-    "name": {
       "first": "María",
       "last": "Rodriguez"
     },
@@ -71,44 +57,13 @@
   },
   {
     "name": {
-      "first": "Isabella",
-      "last": "Morales"
+      "first": "Violeta",
+      "last": "Martínez"
     },
-    "bio": "Maestra de yoga certificada en Hatha y Vinyasa con enfoque en mindfulness y bienestar integral. Crea un ambiente seguro y acogedor para todos los niveles.",
+    "bio": "Instructora con especialidad en rutinas que fortalecen cuerpo y mente. Clases retadoras, relajantes y conscientes. ",
     "certifications": [
-      "E-RYT 500 Yoga Alliance",
-      "Yin Yoga Specialist",
-      "Prenatal Yoga Instructor",
-      "Meditation Teacher Training"
+      "Reformer Specialist"
     ],
-    "profilePictureUrl": "/images/pancakes.png"
-  },
-  {
-    "name": {
-      "first": "Lucía",
-      "last": "Vargas"
-    },
-    "bio": "Instructora joven y dinámica especializada en Sculpt y entrenamiento funcional. Su pasión por el fitness es contagiosa y motiva a estudiantes de todas las edades.",
-    "certifications": [
-      "ACE Personal Trainer",
-      "Sculpt Method Instructor",
-      "Functional Movement Screen",
-      "Youth Fitness Specialist"
-    ],
-    "profilePictureUrl": "/images/pancakes.png"
-  },
-  {
-    "name": {
-      "first": "Valentina",
-      "last": "Cruz"
-    },
-    "bio": "Instructora senior con más de 12 años de experiencia. Mentora de nuevos instructores y especialista en adaptar clases para necesidades especiales y tercera edad.",
-    "certifications": [
-      "Master Trainer Pilates",
-      "Senior Fitness Specialist",
-      "Adaptive Fitness Instructor",
-      "Continuing Education Provider"
-    ],
-    "profilePictureUrl": "/images/pancakes.png"
+    "profilePictureUrl": "/images/COACH-VIOLETA.jpg"
   }
 ]

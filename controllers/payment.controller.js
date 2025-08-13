@@ -10,7 +10,7 @@ const ClassSession = require('../schemas/classSessions.model');
 const { canUserPurchase, createPurchaseWithValidation } = require('../helpers/purchaseHelper');
 require('dotenv').config();
 
-const NGROK_URL = 'https://239b8e2f58fc.ngrok-free.app'; // UPDATE THIS when ngrok changes
+const NGROK_URL = 'https://e24f77c98e56.ngrok-free.app'; // UPDATE THIS when ngrok changes
 const LOCALHOST_URL = 'http://localhost:5000'; // Your frontend URL
 
 console.log('MP_ACCESS_TOKEN loaded:', process.env.MP_ACCESS_TOKEN ? 'Yes' : 'No');
