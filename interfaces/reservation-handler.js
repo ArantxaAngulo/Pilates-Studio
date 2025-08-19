@@ -270,48 +270,140 @@ function updateClassInfoDisplay(date) {
 
 // Load time slots for selected date
 async function loadTimeSlots(date) {
-    const timeSlotsGrid = document.querySelector('.time-slots-grid');
-    if (!timeSlotsGrid) return;
+    const amSlotsContainer = document.getElementById('amSlots');
+    const pmSlotsContainer = document.getElementById('pmSlots');
+    
+    if (!amSlotsContainer || !pmSlotsContainer) return;
     
     const dateKey = date.toISOString().split('T')[0];
     const daySessions = availableSessions[dateKey] || [];
     
+    // Clear existing slots
+    amSlotsContainer.innerHTML = '';
+    pmSlotsContainer.innerHTML = '';
+    
     if (daySessions.length === 0) {
-        timeSlotsGrid.innerHTML = '<p style="color: #7d666698;">No hay clases disponibles este día</p>';
+        // Check if it's Saturday
+        const dayOfWeek = date.getDay();
+        if (dayOfWeek === 6) {
+            // Saturday - only show morning message
+            amSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
+            pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
+        } else {
+            amSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
+            pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
+        }
         return;
     }
     
-    timeSlotsGrid.innerHTML = daySessions.map(session => {
-        const isFull = session.availableSpots === 0;
-        const timeStr = new Date(session.startsAt).toLocaleTimeString('es-MX', {
-            hour: 'numeric', minute: '2-digit', hour12: true
-        });
+    // Check if it's Saturday first
+    const dayOfWeek = date.getDay();
+    
+    // Separate sessions into AM and PM
+    const amSessions = [];
+    const pmSessions = [];
+    
+    daySessions.forEach(session => {
+        const sessionTime = new Date(session.startsAt);
+        const hour = sessionTime.getHours();
         
-        return `
-            <div class="time-slot-item ${isFull ? 'disabled' : ''}" 
-                 data-session-id="${session._id}"
-                 onclick="selectTimeSlot(this)">
-                <div>${timeStr}</div>
-                ${isFull ? '<small style="color: #ef4444;">Clase llena</small>' : ''}
-            </div>
-        `;
-    }).join('');
+        // For Saturday, only add morning sessions (8am-10am)
+        if (dayOfWeek === 6) {
+            if (hour >= 8 && hour < 10) {
+                amSessions.push(session);
+            }
+            // Ignore any PM sessions on Saturday (shouldn't exist but just in case)
+        } else {
+            // Monday-Friday: separate normally
+            if (hour < 12) {
+                amSessions.push(session);
+            } else {
+                pmSessions.push(session);
+            }
+        }
+    });
+    
+    // Sort sessions by time (important!)
+    amSessions.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+    pmSessions.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+    
+    // Render AM sessions
+    if (amSessions.length > 0) {
+        amSlotsContainer.innerHTML = amSessions.map(session => createTimeSlotElement(session)).join('');
+    } else {
+        amSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases por la mañana</p>';
+    }
+    
+    // Render PM sessions
+    if (dayOfWeek === 6) {
+        // Saturday: Always show "no afternoon classes" message
+        pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
+    } else if (pmSessions.length > 0) {
+        // Monday-Friday with PM sessions
+        pmSlotsContainer.innerHTML = pmSessions.map(session => createTimeSlotElement(session)).join('');
+    } else {
+        // Monday-Friday without PM sessions
+        pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases por la tarde</p>';
+    }
 }
 
-// Select time slot
+// Helper function to create time slot element
+function createTimeSlotElement(session) {
+    const isFull = session.availableSpots === 0;
+    const timeStr = new Date(session.startsAt).toLocaleTimeString('es-MX', {
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true
+    });
+    
+    const availableSpots = session.capacity - session.reservedCount;
+    const capacityText = `${session.reservedCount}/${session.capacity} inscritos`;
+    
+    return `
+        <div class="time-slot-item ${isFull ? 'disabled' : ''}" 
+             data-session-id="${session._id}"
+             onclick="${isFull ? '' : 'selectTimeSlot(this)'}">
+            <div>${timeStr}</div>
+            <div class="slot-capacity">${capacityText}</div>
+            ${isFull ? '<small style="color: #ef4444; font-weight: 600;">Clase llena</small>' : ''}
+        </div>
+    `;
+}
+
+// Updated select time slot function
 window.selectTimeSlot = function(element) {
     if(element.classList.contains('disabled')) return;
 
-    document.querySelectorAll('.time-slot-item').forEach(slot => slot.classList.remove('selected'));
+    // Remove selected class from all slots
+    document.querySelectorAll('.time-slot-item').forEach(slot => {
+        slot.classList.remove('selected');
+    });
     
+    // Add selected class to clicked element
     element.classList.add('selected');
     const sessionId = element.dataset.sessionId;
     
+    // Find the selected session
     const dateKey = selectedDate.toISOString().split('T')[0];
     selectedSession = availableSessions[dateKey].find(s => s._id === sessionId);
     
+    // Update session details display
     updateSessionDetails();
 };
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.querySelector('.calendar')) {
+        initCalendar();
+        
+        // Load real data when page loads
+        const today = new Date();
+        if (today.getDay() !== 0) { // Not Sunday
+            selectDate(today);
+            // Will load real sessions via loadTimeSlots function
+        }
+    }
+});
 
 // Session details display
 function updateSessionDetails() {
@@ -442,7 +534,7 @@ async function handleReservation() {
         const eligibility = await eligibilityResponse.json();
         
         if (!eligibility.canBook) {
-            showAlert(eligibility.message || 'No puedes reservar esta clase', 'error');
+            showAlert('No puedes reservar esta clase, Inicia Sesion o Refresca la Pagina', 'error');
             return;
         }
         
@@ -484,7 +576,7 @@ async function handleReservation() {
         }
     } catch (error) {
         console.error('Error making reservation:', error);
-        showAlert(error.message || 'Error al procesar la reserva', 'error');
+        showAlert('Error al procesar la reserva', 'error');
     }
 }
 
@@ -536,7 +628,7 @@ async function cancelReservation(reservationId) {
         const result = await response.json();
         
         if (response.ok) {
-            showAlert(result.message || 'Reserva cancelada exitosamente', 'success');
+            showAlert('Reserva cancelada exitosamente', 'success');
             // Reload reservations
             if (typeof loadUserReservations === 'function') {
                 loadUserReservations();
@@ -550,7 +642,7 @@ async function cancelReservation(reservationId) {
         
     } catch (error) {
         console.error('Error cancelling reservation:', error);
-        showAlert(error.message || 'Error al cancelar la reserva', 'error');
+        showAlert('Error al cancelar la reserva', 'error');
     }
 }
 
@@ -716,6 +808,6 @@ async function processSingleClassPayment(sessionId, userId) {
         
     } catch (error) {
         console.error('Error processing single class payment:', error);
-        showAlert(error.message || 'Error al procesar el pago', 'error');
+        showAlert('Error al procesar el pago', 'error');
     }
 }

@@ -142,21 +142,46 @@ async function displayCalendarSessions() {
 
             const scheduleGrid = dayContent.querySelector('.schedule-grid');
             if (scheduleGrid) {
-                // For demo purposes, create sample schedule
-                const timeSlots = ['6:00 AM', '7:00 AM', '8:00 AM', '9:00 AM'];
+                let timeSlots = [];
+                
+                // Define time slots based on day
+                if (dayName === 'sabado') {
+                    // Saturday: 8:00 AM - 10:00 AM only (NO PM SLOTS)
+                    timeSlots = ['8:00 AM', '9:00 AM'];
+                } else if (dayName !== 'domingo') {
+                    // Monday to Friday: 6:00 AM - 10:00 AM & 4:00 PM - 8:00 PM
+                    timeSlots = [
+                        '6:00 AM', '7:00 AM', '8:00 AM', '9:00 AM',
+                        '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM'
+                    ];
+                } else {
+                    // Sunday: No classes
+                    timeSlots = [];
+                }
                 
                 scheduleGrid.innerHTML = timeSlots.map((time, index) => {
-                    // Random class type and instructor
+                    // Random class type and instructor for demo
                     const classType = classTypes.data.classTypes[Math.floor(Math.random() * classTypes.data.classTypes.length)];
                     const instructor = instructors.data.instructors[Math.floor(Math.random() * instructors.data.instructors.length)];
                     const reserved = Math.floor(Math.random() * 8) + 1;
+                    
+                    // Calculate end time
+                    let endTime;
+                    if (time.includes('AM')) {
+                        const hour = parseInt(time);
+                        const nextHour = hour === 9 ? 10 : hour + 1;
+                        endTime = `${nextHour}:00 AM`;
+                    } else {
+                        const hour = parseInt(time);
+                        const nextHour = hour === 7 ? 8 : hour + 1;
+                        endTime = `${nextHour}:00 PM`;
+                    }
                     
                     return `
                         <div class="time-slot">
                             <div class="class-type">${classType.name}</div>
                             <div class="class-name">${reserved}/10</div>
-                            <div class="class-time">${time} - ${parseInt(time) + 1}:00 ${time.includes('AM') ? 'AM' : 'PM'}</div>
-                            <div class="capacity-info">${instructor.name.first}</div>
+                            <div class="class-time">${time} - ${endTime}</div>
                         </div>
                     `;
                 }).join('');
@@ -166,6 +191,17 @@ async function displayCalendarSessions() {
         console.error('Error loading calendar sessions:', error);
     }
 }
+
+// Initialize calendar when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.querySelector('.horario-section')) {
+        // Try to load from API first, fallback to demo data
+        displayCalendarSessionsFromAPI().catch(() => {
+            console.log('Falling back to demo data');
+            displayCalendarSessions();
+        });
+    }
+});
 
 // ======================
 // CLASS DETAIL PAGE

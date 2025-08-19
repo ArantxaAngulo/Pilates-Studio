@@ -3,64 +3,6 @@ const ClassType = require('../schemas/classTypes.model');
 const Instructor = require('../schemas/instructors.model');
 const mongoose = require('mongoose');
 
-// GET ALL CLASS SESSIONS
-exports.getAllClassSessions = async (req, res) => {
-    try {
-        const { date, classTypeId, instructorId, available, startDate, endDate } = req.query;
-        
-        let filter = {};
-        
-        // Filter by specific date
-        if (date) {
-            const searchDate = new Date(date);
-            const nextDay = new Date(searchDate);
-            nextDay.setDate(nextDay.getDate() + 1);
-            
-            filter.startsAt = {
-                $gte: searchDate,
-                $lt: nextDay
-            };
-        }
-        
-        // Filter by date range
-        if (startDate || endDate) {
-            filter.startsAt = {};
-            if (startDate) filter.startsAt.$gte = new Date(startDate);
-            if (endDate) filter.startsAt.$lte = new Date(endDate);
-        }
-        
-        // Filter by class type
-        if (classTypeId) {
-            filter.classTypeId = classTypeId;
-        }
-        
-        // Filter by instructor
-        if (instructorId) {
-            filter.instructorId = instructorId;
-        }
-        
-        // Filter only available sessions (not fully booked)
-        if (available === 'true') {
-            filter.$expr = { $lt: ['$reservedCount', '$capacity'] };
-        }
-
-        const sessions = await ClassSession.find(filter)
-            .populate('classTypeId', 'name description level')
-            .populate('instructorId', 'name bio')
-            .sort({ startsAt: 1 });
-
-        res.json({
-            status: 'success',
-            data: {
-                classSessions: sessions,
-                count: sessions.length
-            }
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-};
-
 // GET AVAILABLE SESSIONS FOR BOOKING
 exports.getAvailableSessions = async (req, res) => {
     try {
@@ -102,7 +44,7 @@ exports.getAvailableSessions = async (req, res) => {
         const sessions = await ClassSession.find(filter)
             .populate('classTypeId', 'name description level')
             .populate('instructorId', 'name bio')
-            .sort({ startsAt: 1 });
+            .sort({ startsAt: 1 }); // Sort by start time ascending
 
         // Group sessions by date for easier frontend consumption
         const sessionsByDate = {};
@@ -127,12 +69,81 @@ exports.getAvailableSessions = async (req, res) => {
                 })
             });
         });
+        
+        // Sort each day's sessions by time
+        Object.keys(sessionsByDate).forEach(dateKey => {
+            sessionsByDate[dateKey].sort((a, b) => 
+                new Date(a.startsAt) - new Date(b.startsAt)
+            );
+        });
 
         res.json({
             status: 'success',
             data: {
                 availableSessions: sessions,
                 sessionsByDate,
+                count: sessions.length
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching available sessions:', err);
+        res.status(500).json({ 
+            status: 'error',
+            message: 'Error fetching available sessions',
+            error: err.message 
+        });
+    }
+};
+
+// GET ALL SESSIONS
+exports.getAllClassSessions = async (req, res) => {
+    try {
+        const { date, month, year, classTypeId, instructorId } = req.query;
+        
+        let filter = {};
+        
+        // Filter by specific date
+        if (date) {
+            const searchDate = new Date(date);
+            const nextDay = new Date(searchDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            
+            filter.startsAt = {
+                $gte: searchDate,
+                $lt: nextDay
+            };
+        }
+        
+        // Filter by month and year
+        if (month && year) {
+            const startOfMonth = new Date(year, month - 1, 1);
+            const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+            
+            filter.startsAt = {
+                $gte: startOfMonth,
+                $lte: endOfMonth
+            };
+        }
+        
+        // Filter by class type
+        if (classTypeId) {
+            filter.classTypeId = classTypeId;
+        }
+        
+        // Filter by instructor
+        if (instructorId) {
+            filter.instructorId = instructorId;
+        }
+
+        const sessions = await ClassSession.find(filter)
+            .populate('classTypeId', 'name description level')
+            .populate('instructorId', 'name bio')
+            .sort({ startsAt: 1 }); // Always sort by start time
+
+        res.json({
+            status: 'success',
+            data: {
+                classSessions: sessions,
                 count: sessions.length
             }
         });

@@ -658,7 +658,7 @@ body {
     opacity: 1;
   }
   
-  .calendar {
+.calendar {
     margin-top: 1.5rem;
     background-color: #fff;
     padding: 1.25rem;
@@ -667,24 +667,24 @@ body {
     width: 26rem;
     height: 20rem;
     max-width: 100%;
-  }
-  
-  .calendar-header {
+}
+
+.calendar-header {
     font-weight: 500;
     margin-bottom: 1rem;
     color: #7D6666;
     font-size: 0.95rem;
-  }
-  
-  .calendar-grid {
+}
+
+.calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 0.4rem;
     justify-content: stretch;
     width: 100%;
-  }
-  
-  .calendar-day {
+}
+
+.calendar-day {
     text-align: center;
     padding: 8px 4px;
     border-radius: 6px;
@@ -697,32 +697,32 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-  
-  .calendar-day.header {
+}
+
+.calendar-day.header {
     font-weight: 500;
     color: #D4B2A7;
     cursor: default;
-  }
-  
-  .calendar-day.selected {
+}
+
+.calendar-day.selected {
     background-color: #D4B2A7;
     color: white;
-  }
-  
-  .calendar-day:not(.header):not(.selected):hover {
+}
+
+.calendar-day:not(.header):not(.selected):hover {
     background-color: rgba(212, 178, 167, 0.1);
-  }
-  
-  .time-slots {
+}
+
+.time-slots {
     margin-top: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     max-width: 200px;
-  }
-  
-  .time-slot-item {
+}
+
+.time-slot-item {
     background-color: #FFFAF6;
     border: 2px solid #D4B2A7;
     color: #D4B2A7;
@@ -732,16 +732,17 @@ body {
     transition: all 0.2s ease;
     font-size: 0.9rem;
     text-align: center;
-  }
-  
-  .time-slot-item.selected {
+}
+
+.time-slot-item.selected {
     background-color: #D4B2A7;
     color: white;
-  }
-  
-  .time-slot-item:not(.selected):hover {
+}
+
+.time-slot-item:not(.selected):hover {
     background-color: rgba(212, 178, 167, 0.1);
-  }
+}
+
 .calendar-time-container {
     display: flex;
     gap: 2rem;
@@ -774,6 +775,74 @@ body {
     gap: 0.75rem;
     width: fit-content; 
     min-width: 120px;
+}
+
+/* NEW: Two-column time slots layout */
+.time-columns-container {
+    display: grid;
+    margin-top: 0.5rem;
+}
+
+.time-column {
+    background: rgba(212, 178, 167, 0.08);
+    padding: 1.25rem;
+    border-radius: 10px;
+    border: 1px solid rgba(212, 178, 167, 0.15);
+}
+
+.time-column h4 {
+    color: #7D6666;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.time-column .time-slot-item {
+    margin: 0.5rem 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Mobile responsiveness for two-column layout */
+@media (max-width: 768px) {
+    .time-columns-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .time-column {
+        padding: 1rem;
+    }
+    
+    .calendar-time-container {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .time-slots-wrapper {
+        width: 100%;
+    }
+    
+    .time-slots-grid {
+        width: 100%;
+    }
+}
+
+/* Additional mobile responsiveness */
+@media (max-width: 480px) {
+    .time-columns-container {
+        gap: 0.75rem;
+    }
+    
+    .time-column {
+        padding: 0.75rem;
+    }
+    
+    .time-column h4 {
+        font-size: 0.85rem;
+        margin-bottom: 0.75rem;
+    }
 }
 .class-card {
     scroll-snap-align: start;
