@@ -8,21 +8,47 @@ exports.getAvailableSessions = async (req, res) => {
     try {
         const { date, month, year, classTypeId } = req.query;
         
+        // Get current time for filtering past sessions
+        const now = new Date();
+        
         let filter = {
-            startsAt: { $gte: new Date() }, // Only future sessions
+            startsAt: { $gte: now }, // Only future sessions (this already filters out past times)
             $expr: { $lt: ['$reservedCount', '$capacity'] } // Not fully booked
         };
         
-        // Filter by specific date
+        // Filter by specific date - EXTENDED TO CATCH TIMEZONE OVERLAP
         if (date) {
+            // Parse the date string and set to beginning of day
             const searchDate = new Date(date);
-            const nextDay = new Date(searchDate);
-            nextDay.setDate(nextDay.getDate() + 1);
+            searchDate.setHours(0, 0, 0, 0);
+            
+            // Check if the requested date is today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const isToday = searchDate.getTime() === today.getTime();
+            
+            // If it's today, use current time as start filter
+            // Otherwise, use beginning of requested day
+            const startFilter = isToday ? now : searchDate;
+            
+            // Extend the end time to 8 hours into the next day
+            // This ensures we catch evening classes that might be stored as next day in UTC
+            const extendedEnd = new Date(searchDate);
+            extendedEnd.setDate(extendedEnd.getDate() + 1);
+            extendedEnd.setHours(8, 0, 0, 0); // Extend to 8am next day in local time
             
             filter.startsAt = {
-                $gte: searchDate,
-                $lt: nextDay
+                $gte: startFilter, // Use current time if today, otherwise start of day
+                $lt: extendedEnd
             };
+            
+            console.log('Date filter applied:', {
+                requestedDate: date,
+                isToday: isToday,
+                filterStart: startFilter.toISOString(),
+                filterEnd: extendedEnd.toISOString(),
+                currentTime: now.toISOString()
+            });
         }
         
         // Filter by month/year
@@ -30,8 +56,9 @@ exports.getAvailableSessions = async (req, res) => {
             const startOfMonth = new Date(year, month - 1, 1);
             const endOfMonth = new Date(year, month, 0, 23, 59, 59);
             
+            // For month view, still respect the "only future sessions" rule
             filter.startsAt = {
-                $gte: startOfMonth,
+                $gte: now, // Changed from startOfMonth to now
                 $lte: endOfMonth
             };
         }
@@ -44,16 +71,48 @@ exports.getAvailableSessions = async (req, res) => {
         const sessions = await ClassSession.find(filter)
             .populate('classTypeId', 'name description level')
             .populate('instructorId', 'name bio')
-            .sort({ startsAt: 1 }); // Sort by start time ascending
+            .sort({ startsAt: 1 });
 
-        // Group sessions by date for easier frontend consumption
+        // IMPORTANT: Filter sessions to only include those that actually belong to the requested date
+        // in LOCAL time (not UTC)
+        let filteredSessions = sessions;
+        if (date) {
+            const requestedDate = new Date(date);
+            filteredSessions = sessions.filter(session => {
+                const sessionLocal = new Date(session.startsAt);
+                // Check if session is on the requested date
+                const sameDate = sessionLocal.getDate() === requestedDate.getDate() &&
+                               sessionLocal.getMonth() === requestedDate.getMonth() &&
+                               sessionLocal.getFullYear() === requestedDate.getFullYear();
+                
+                // Also ensure the session hasn't already started (double-check)
+                const isFuture = sessionLocal > now;
+                
+                return sameDate && isFuture;
+            });
+            
+            console.log(`Filtered ${sessions.length} sessions to ${filteredSessions.length} for the requested date`);
+        }
+
+        // Group sessions by LOCAL date for easier frontend consumption
         const sessionsByDate = {};
         
-        sessions.forEach(session => {
-            const dateKey = new Date(session.startsAt).toISOString().split('T')[0];
+        filteredSessions.forEach(session => {
+            // Use LOCAL date for grouping
+            const localDate = new Date(session.startsAt);
+            const year = localDate.getFullYear();
+            const month = String(localDate.getMonth() + 1).padStart(2, '0');
+            const day = String(localDate.getDate()).padStart(2, '0');
+            const dateKey = `${year}-${month}-${day}`;
+            
             if (!sessionsByDate[dateKey]) {
                 sessionsByDate[dateKey] = [];
             }
+            
+            // Add a flag to indicate if the session is in the past (for UI styling if needed)
+            const sessionTime = new Date(session.startsAt);
+            const isPast = sessionTime <= now;
+            
             sessionsByDate[dateKey].push({
                 _id: session._id,
                 startsAt: session.startsAt,
@@ -62,6 +121,7 @@ exports.getAvailableSessions = async (req, res) => {
                 availableSpots: session.capacity - session.reservedCount,
                 classType: session.classTypeId,
                 instructor: session.instructorId,
+                isPast: isPast, // Add this flag for frontend use
                 time: new Date(session.startsAt).toLocaleTimeString('es-MX', {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -80,9 +140,10 @@ exports.getAvailableSessions = async (req, res) => {
         res.json({
             status: 'success',
             data: {
-                availableSessions: sessions,
+                availableSessions: filteredSessions,
                 sessionsByDate,
-                count: sessions.length
+                count: filteredSessions.length,
+                serverTime: now.toISOString() // Send server time for debugging
             }
         });
     } catch (err) {
@@ -95,34 +156,34 @@ exports.getAvailableSessions = async (req, res) => {
     }
 };
 
-// GET ALL SESSIONS
+// GET ALL CLASS SESSIONS
 exports.getAllClassSessions = async (req, res) => {
     try {
-        const { date, month, year, classTypeId, instructorId } = req.query;
+        const { date, classTypeId, instructorId, available, startDate, endDate } = req.query;
         
         let filter = {};
         
-        // Filter by specific date
+        // Filter by specific date - EXTENDED TO CATCH TIMEZONE OVERLAP
         if (date) {
             const searchDate = new Date(date);
-            const nextDay = new Date(searchDate);
-            nextDay.setDate(nextDay.getDate() + 1);
+            searchDate.setHours(0, 0, 0, 0);
+            
+            // Extend to catch evening classes that might be next day in UTC
+            const extendedEnd = new Date(searchDate);
+            extendedEnd.setDate(extendedEnd.getDate() + 1);
+            extendedEnd.setHours(8, 0, 0, 0);
             
             filter.startsAt = {
                 $gte: searchDate,
-                $lt: nextDay
+                $lt: extendedEnd
             };
         }
         
-        // Filter by month and year
-        if (month && year) {
-            const startOfMonth = new Date(year, month - 1, 1);
-            const endOfMonth = new Date(year, month, 0, 23, 59, 59);
-            
-            filter.startsAt = {
-                $gte: startOfMonth,
-                $lte: endOfMonth
-            };
+        // Filter by date range
+        if (startDate || endDate) {
+            filter.startsAt = {};
+            if (startDate) filter.startsAt.$gte = new Date(startDate);
+            if (endDate) filter.startsAt.$lte = new Date(endDate);
         }
         
         // Filter by class type
@@ -134,17 +195,34 @@ exports.getAllClassSessions = async (req, res) => {
         if (instructorId) {
             filter.instructorId = instructorId;
         }
+        
+        // Filter only available sessions (not fully booked)
+        if (available === 'true') {
+            filter.$expr = { $lt: ['$reservedCount', '$capacity'] };
+        }
 
         const sessions = await ClassSession.find(filter)
             .populate('classTypeId', 'name description level')
             .populate('instructorId', 'name bio')
-            .sort({ startsAt: 1 }); // Always sort by start time
+            .sort({ startsAt: 1 });
+            
+        // If filtering by specific date, ensure we only return sessions for that LOCAL date
+        let filteredSessions = sessions;
+        if (date) {
+            const requestedDate = new Date(date);
+            filteredSessions = sessions.filter(session => {
+                const sessionLocal = new Date(session.startsAt);
+                return sessionLocal.getDate() === requestedDate.getDate() &&
+                       sessionLocal.getMonth() === requestedDate.getMonth() &&
+                       sessionLocal.getFullYear() === requestedDate.getFullYear();
+            });
+        }
 
         res.json({
             status: 'success',
             data: {
-                classSessions: sessions,
-                count: sessions.length
+                classSessions: filteredSessions,
+                count: filteredSessions.length
             }
         });
     } catch (err) {

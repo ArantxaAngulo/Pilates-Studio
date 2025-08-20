@@ -12,7 +12,12 @@ let totalUserCredits = 0; // Add total credits tracker
 // Initialize reservation system
 document.addEventListener('DOMContentLoaded', function() {
     if (document.querySelector('.calendar-grid')) {
+        initCalendar();
         initializeReservationSystem();
+        const today = new Date();
+        if (today.getDay() !== 0) { // Not Sunday
+            selectDate(today);
+        }
     }
 });
 
@@ -278,17 +283,23 @@ async function loadTimeSlots(date) {
     const dateKey = date.toISOString().split('T')[0];
     const daySessions = availableSessions[dateKey] || [];
     
+    // Get current time for comparison
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    
     // Clear existing slots
     amSlotsContainer.innerHTML = '';
     pmSlotsContainer.innerHTML = '';
     
     if (daySessions.length === 0) {
-        // Check if it's Saturday
         const dayOfWeek = date.getDay();
         if (dayOfWeek === 6) {
-            // Saturday - only show morning message
             amSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
-            pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
+            pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases por la tarde los sábados</p>';
+        } else if (isToday && now.getHours() >= 20) {
+            // If it's after 8pm today, show a different message
+            amSlotsContainer.innerHTML = '<p class="no-slots-message">Las clases de hoy ya terminaron</p>';
+            pmSlotsContainer.innerHTML = '<p class="no-slots-message">Las clases de hoy ya terminaron</p>';
         } else {
             amSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
             pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
@@ -312,7 +323,6 @@ async function loadTimeSlots(date) {
             if (hour >= 8 && hour < 10) {
                 amSessions.push(session);
             }
-            // Ignore any PM sessions on Saturday (shouldn't exist but just in case)
         } else {
             // Monday-Friday: separate normally
             if (hour < 12) {
@@ -323,7 +333,7 @@ async function loadTimeSlots(date) {
         }
     });
     
-    // Sort sessions by time (important!)
+    // Sort sessions by time
     amSessions.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
     pmSessions.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
     
@@ -331,26 +341,43 @@ async function loadTimeSlots(date) {
     if (amSessions.length > 0) {
         amSlotsContainer.innerHTML = amSessions.map(session => createTimeSlotElement(session)).join('');
     } else {
-        amSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases por la mañana</p>';
+        if (isToday && now.getHours() >= 10) {
+            amSlotsContainer.innerHTML = '<p class="no-slots-message">Las clases de la mañana ya terminaron</p>';
+        } else {
+            amSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases por la mañana</p>';
+        }
     }
     
     // Render PM sessions
     if (dayOfWeek === 6) {
         // Saturday: Always show "no afternoon classes" message
-        pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases disponibles</p>';
+        pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases por la tarde los sábados</p>';
     } else if (pmSessions.length > 0) {
         // Monday-Friday with PM sessions
         pmSlotsContainer.innerHTML = pmSessions.map(session => createTimeSlotElement(session)).join('');
     } else {
-        // Monday-Friday without PM sessions
-        pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases por la tarde</p>';
+        if (isToday && now.getHours() >= 20) {
+            pmSlotsContainer.innerHTML = '<p class="no-slots-message">Las clases de la tarde ya terminaron</p>';
+        } else {
+            pmSlotsContainer.innerHTML = '<p class="no-slots-message">No hay clases por la tarde</p>';
+        }
     }
 }
 
+
 // Helper function to create time slot element
 function createTimeSlotElement(session) {
+    const now = new Date();
+    const sessionTime = new Date(session.startsAt);
+    
+    // Check if session has already started
+    const isPast = sessionTime <= now;
     const isFull = session.availableSpots === 0;
-    const timeStr = new Date(session.startsAt).toLocaleTimeString('es-MX', {
+    
+    // Disable slot if it's full OR if it's in the past
+    const isDisabled = isFull || isPast;
+    
+    const timeStr = sessionTime.toLocaleTimeString('es-MX', {
         hour: 'numeric', 
         minute: '2-digit', 
         hour12: true
@@ -359,13 +386,21 @@ function createTimeSlotElement(session) {
     const availableSpots = session.capacity - session.reservedCount;
     const capacityText = `${session.reservedCount}/${session.capacity} inscritos`;
     
+    // Determine the reason for disabling
+    let disabledMessage = '';
+    if (isPast) {
+        disabledMessage = '<small style="color: #999; font-weight: 600;">Clase ya comenzó</small>';
+    } else if (isFull) {
+        disabledMessage = '<small style="color: #ef4444; font-weight: 600;">Clase llena</small>';
+    }
+    
     return `
-        <div class="time-slot-item ${isFull ? 'disabled' : ''}" 
+        <div class="time-slot-item ${isDisabled ? 'disabled' : ''}" 
              data-session-id="${session._id}"
-             onclick="${isFull ? '' : 'selectTimeSlot(this)'}">
+             onclick="${isDisabled ? '' : 'selectTimeSlot(this)'}">
             <div>${timeStr}</div>
             <div class="slot-capacity">${capacityText}</div>
-            ${isFull ? '<small style="color: #ef4444; font-weight: 600;">Clase llena</small>' : ''}
+            ${disabledMessage}
         </div>
     `;
 }
