@@ -164,6 +164,68 @@ exports.createUser = async (req, res) => {
                 }
             });
         }
+        
+            const ALLOWED_EMAIL_DOMAINS = [
+      // Global providers
+      'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'live.com', 
+      'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com', 
+      'proton.me', 'zoho.com', 'yandex.com', 'mail.com', 'gmx.com',
+      
+      // Microsoft domains
+      'msn.com', 'hotmail.co.uk', 'outlook.es', 'outlook.fr',
+      
+      // Regional providers - Mexico
+      'prodigy.net.mx', 'telmex.com', 'axtel.net', 
+      
+      // Regional providers - Spain  
+      'terra.com', 'telefonica.net', 'ono.com', 'orange.es', 'movistar.es',
+      
+      // Regional providers - Latin America
+      'uol.com.br', 'bol.com.br', 'terra.com.br', // Brazil
+      'speedy.com.ar', 'fibertel.com.ar', 'arnet.com.ar', // Argentina
+      'vtr.net', 'tie.cl', // Chile
+      'une.net.co', 'etb.net.co', // Colombia
+      
+      // Educational (common patterns)
+      'edu', 'edu.mx', 'ac.uk', 'edu.co',
+      
+      // Business domains (for professional emails)
+      'company.com', 'corporate.com'
+    ];
+           const BLOCKED_EMAIL_DOMAINS = [
+      'test.com', 'example.com', 'temp-mail.org', '10minutemail.com',
+      'guerrillamail.com', 'mailinator.com', 'maildrop.cc', 'throwaway.email',
+      'yopmail.com', 'tempmail.com', 'trashmail.com', 'sharklasers.com',
+      'guerrillamail.info', 'grr.la', 'guerrillamail.biz', 'guerrillamail.org',
+      'guerrillamailblock.com', 'pokemail.net', 'spam4.me', 'fakeinbox.com',
+      'emailondeck.com', 'getnada.com', 'mailnesia.com', 'mintemail.com',
+      'tempinbox.com', 'disposablemail.com', 'throwawaymail.com', 'tmpmail.net'
+    ];
+
+        function isValidEmailDomain(email) {
+            const domain = email.toLowerCase().split('@')[1];
+            
+            if (BLOCKED_EMAIL_DOMAINS.includes(domain)) {
+                return false;
+            }
+            
+            // Allow educational domains
+            if (domain.endsWith('.edu') || domain.endsWith('.edu.mx')) {
+                return true;
+            }
+            
+            return ALLOWED_EMAIL_DOMAINS.includes(domain);
+        }
+
+        // In your createUser function, add:
+        if (!isValidEmailDomain(email)) {
+            return res.status(400).json({ 
+                error: "Validation failed",
+                details: {
+                    email: "Please use a valid email provider (Gmail, Yahoo, Outlook, etc.)"
+                }
+            });
+        }
 
         // Validate password strength
         if (password.length < 8) {
@@ -171,6 +233,16 @@ exports.createUser = async (req, res) => {
                 error: "Validation failed",
                 details: {
                     password: "Password must be at least 8 characters long"
+                }
+            });
+        }
+        
+        const specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/;
+        if (!specialCharRegex.test(password)) {
+            return res.status(400).json({ 
+                error: "Validation failed",
+                details: {
+                    password: "Password must contain at least one special character"
                 }
             });
         }
