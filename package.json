@@ -4,8 +4,17 @@
   "description": "��#\u0000 \u0000P\u0000i\u0000l\u0000a\u0000t\u0000e\u0000s\u0000-\u0000S\u0000t\u0000u\u0000d\u0000i\u0000o\u0000\r\u0000 \u0000#\u0000 \u0000P\u0000i\u0000l\u0000a\u0000t\u0000e\u0000s\u0000-\u0000S\u0000t\u0000u\u0000d\u0000i\u0000o\u0000\r\u0000 \u0000",
   "main": "server.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build": "echo 'No build step required for Node.js backend'",
+    "docker:build": "docker build -t pilates-studio .",
+    "docker:run": "docker run -p 5000:5000 --env-file .env pilates-studio",
+    "docker:dev": "docker-compose up --build",
+    "docker:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "lint": "echo 'Add ESLint for code linting'",
+    "seed": "node seedDatabase.js",
+    "seed:classes": "node seedClassSessions.js"
   },
   "keywords": [],
   "author": "",

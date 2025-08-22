@@ -16,7 +16,7 @@ const verifyToken = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   // 3.5. Use JWT_SECRET with fallback
-  const jwtSecret = process.env.JWT_SECRET || '123xyz';
+  const jwtSecret = process.env.JWT_SECRET;
 
   // 4. Verify token
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {

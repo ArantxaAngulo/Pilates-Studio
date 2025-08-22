@@ -10,13 +10,28 @@ const ClassSession = require('../schemas/classSessions.model');
 const { canUserPurchase, createPurchaseWithValidation } = require('../helpers/purchaseHelper');
 require('dotenv').config();
 
-const NGROK_URL = 'https://255d16ad07c4.ngrok-free.app'; // UPDATE THIS when ngrok changes
-const LOCALHOST_URL = 'http://localhost:5000'; // Your frontend URL
+// Get URLs from environment variables
+const getBaseUrl = () => {
+    if (process.env.NODE_ENV === 'production') {
+        return process.env.PRODUCTION_BASE_URL || process.env.BASE_URL;
+    }
+    return process.env.NGROK_URL || process.env.BASE_URL || 'http://localhost:5000';
+};
+
+const getFrontendUrl = () => {
+    if (process.env.NODE_ENV === 'production') {
+        return process.env.PRODUCTION_FRONTEND_URL || process.env.FRONTEND_URL;
+    }
+    return process.env.FRONTEND_URL || 'http://localhost:5000';
+};
+
+const BASE_URL = getBaseUrl();
+const FRONTEND_URL = getFrontendUrl();
 
 console.log('MP_ACCESS_TOKEN loaded:', process.env.MP_ACCESS_TOKEN ? 'Yes' : 'No');
 
 const client = new MercadoPagoConfig({ 
-  accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-4434682279033323-072219-fecfdf1c4fb06a1c8a8dc1a2c582de6e-1899614331',
+  accessToken: process.env.MP_ACCESS_TOKEN,
   options: {
     timeout: 30000,
     retries: 3
@@ -101,11 +116,11 @@ exports.createPreference = async (req, res) => {
         }
       ],
       back_urls: {
-        success: `${NGROK_URL}/api/payments/success`,
-        failure: `${NGROK_URL}/api/payments/failure`,
-        pending: `${NGROK_URL}/api/payments/pending`
+        success: `${BASE_URL}/api/payments/success`,
+        failure: `${BASE_URL}/api/payments/failure`,
+        pending: `${BASE_URL}/api/payments/pending`
       },
-      notification_url: `${NGROK_URL}/api/payments/webhook`,
+      notification_url: `${BASE_URL}/api/payments/webhook`,
       auto_return: 'approved',
       external_reference: finalExternalReference || '',
       statement_descriptor: 'PILATES STUDIO',
@@ -161,7 +176,7 @@ exports.handleSuccess = async (req, res) => {
             if (!metadata.userId || !metadata.sessionId || !metadata.singleClassPrice) {
                 console.error("🔴 Invalid metadata for single class payment in success handler:", metadata);
                 await session.abortTransaction();
-                return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=${encodeURIComponent('Invalid payment data')}`);
+                return res.redirect(`${FRONTEND_URL}/interfaces/error.html?reason=${encodeURIComponent('Invalid payment data')}`);
             }
 
             const existingCompletedReservation = await Reservation.findOne({ 
@@ -173,19 +188,19 @@ exports.handleSuccess = async (req, res) => {
             if (existingCompletedReservation) {
                 console.log('Single class reservation already completed');
                 await session.commitTransaction();
-                return res.redirect(`${LOCALHOST_URL}/interfaces/success.html?type=single_class`);
+                return res.redirect(`${FRONTEND_URL}/interfaces/success.html?type=single_class`);
             }
 
             const classSession = await ClassSession.findById(metadata.sessionId).session(session);
             if (!classSession) {
                 console.error(`🔴 Class session not found`);
                 await session.abortTransaction();
-                return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=${encodeURIComponent('Class session not found')}`);
+                return res.redirect(`${FRONTEND_URL}/interfaces/error.html?reason=${encodeURIComponent('Class session not found')}`);
             }
             if (classSession.reservedCount >= classSession.capacity) {
                 console.error(`🔴 Class session is full`);
                 await session.abortTransaction();
-                return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=${encodeURIComponent('Class session is full')}`);
+                return res.redirect(`${FRONTEND_URL}/interfaces/error.html?reason=${encodeURIComponent('Class session is full')}`);
             }
 
             const newReservation = new Reservation({
@@ -209,7 +224,7 @@ exports.handleSuccess = async (req, res) => {
             
             await session.commitTransaction();
             console.log('Single class payment completed and reservation created:', newReservation._id);
-            return res.redirect(`${LOCALHOST_URL}/interfaces/success.html?type=single_class`);
+            return res.redirect(`${FRONTEND_URL}/interfaces/success.html?type=single_class`);
             
         } else if (metadata.type === 'package') {
             // For package purchases
@@ -223,7 +238,7 @@ exports.handleSuccess = async (req, res) => {
             if (existingPurchase) {
               console.log('Purchase already exists for this payment');
               await session.commitTransaction();
-              return res.redirect(`${LOCALHOST_URL}/interfaces/success.html?existing=true`);
+              return res.redirect(`${FRONTEND_URL}/interfaces/success.html?existing=true`);
             }
 
             // Get package details
@@ -231,7 +246,7 @@ exports.handleSuccess = async (req, res) => {
             if (!package) {
               console.error('Package not found:', metadata.packageId);
               await session.abortTransaction();
-              return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=package_not_found`);
+              return res.redirect(`${FRONTEND_URL}/interfaces/error.html?reason=package_not_found`);
             }
 
             // Create the purchase WITHOUT trying to fetch payment from MercadoPago
@@ -249,7 +264,7 @@ exports.handleSuccess = async (req, res) => {
             
             await session.commitTransaction();
             console.log('Package purchase created successfully:', newPurchase._id);
-            return res.redirect(`${LOCALHOST_URL}/interfaces/success.html?type=package`);
+            return res.redirect(`${FRONTEND_URL}/interfaces/success.html?type=package`);
         }
         
       } catch (error) {
@@ -258,7 +273,7 @@ exports.handleSuccess = async (req, res) => {
         if (session.inTransaction()) {
           await session.abortTransaction();
         }
-        return res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=processing_error`);
+        return res.redirect(`${FRONTEND_URL}/interfaces/error.html?reason=processing_error`);
       }
     }
 
@@ -266,7 +281,7 @@ exports.handleSuccess = async (req, res) => {
     if (session.inTransaction()) {
       await session.commitTransaction();
     }
-    res.redirect(`${LOCALHOST_URL}/interfaces/success.html`);
+    res.redirect(`${FRONTEND_URL}/interfaces/success.html`);
     
   } catch (error) {
     console.error('Error handling success callback:', error);
@@ -274,7 +289,7 @@ exports.handleSuccess = async (req, res) => {
     if (session.inTransaction()) {
       await session.abortTransaction();
     }
-    res.redirect(`${LOCALHOST_URL}/interfaces/error.html?reason=processing_error`);
+    res.redirect(`${FRONTEND_URL}/interfaces/error.html?reason=processing_error`);
   } finally {
     session.endSession();
   }
@@ -294,7 +309,7 @@ exports.handleFailure = async (req, res) => {
   } catch (e) {
       console.error("Error parsing external_reference on failure:", e);
   }
-  res.redirect(`${LOCALHOST_URL}/interfaces/failure.html`);
+  res.redirect(`${FRONTEND_URL}/interfaces/failure.html`);
 };
 
 // Handle pending payment
@@ -311,7 +326,7 @@ exports.handlePending = async (req, res) => {
   } catch (e) {
       console.error("Error parsing external_reference on pending:", e);
   }
-  res.redirect(`${LOCALHOST_URL}/interfaces/pending.html`);
+  res.redirect(`${FRONTEND_URL}/interfaces/pending.html`);
 };
 
 // Create single class payment preference
@@ -350,11 +365,11 @@ exports.createSingleClassPreference = async (req, res) => {
                 currency_id: 'MXN'
             }],
             back_urls: {
-                success: `${NGROK_URL}/api/payments/success`,
-                failure: `${NGROK_URL}/api/payments/failure`,
-                pending: `${NGROK_URL}/api/payments/pending`
+                success: `${BASE_URL}/api/payments/success`,
+                failure: `${BASE_URL}/api/payments/failure`,
+                pending: `${BASE_URL}/api/payments/pending`
             },
-            notification_url: `${NGROK_URL}/api/payments/webhook`,
+            notification_url: `${BASE_URL}/api/payments/webhook`,
             auto_return: 'approved',
             external_reference: JSON.stringify({
                 type: 'single_class',

@@ -2,6 +2,7 @@ const User = require('../schemas/user.model');
 const Purchase = require('../schemas/purchases.model');
 const Reservation = require('../schemas/reservations.model');
 const jwt = require('jsonwebtoken');
+const jwtHelper = require('../helpers/jwt.helper');
 
 // GET ALL USERS (Admin only)
 exports.getAllUsers = async (req, res) => {
@@ -280,29 +281,15 @@ exports.createUser = async (req, res) => {
         // Create new user
         const user = await User.create({ name, email, password, dob });
         
-        // Generate JWT tokens
-        const jwtSecret = process.env.JWT_SECRET || '123xyz';
-        
-        const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.role || 'user' },
-            jwtSecret,
-            { expiresIn: '15m' }
-        );
-
-        const refreshToken = jwt.sign(
-            { id: user._id },
-            jwtSecret,
-            { expiresIn: '7d' }
-        );
+        // Generate JWT tokens using helper
+        const tokenPair = jwtHelper.generateTokenPair(user);
 
         // Don't send password back
         user.password = undefined;
 
         res.status(201).json({
             status: 'success',
-            token,
-            refreshToken,
-            expiresIn: 15 * 60,
+            ...tokenPair,
             data: {
                 user
             }
@@ -475,20 +462,8 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
         
-        // Use JWT_SECRET with fallback for development
-        const jwtSecret = process.env.JWT_SECRET || '123xyz';
-        
-        const token = jwt.sign(
-            { id: user._id, email: user.email, role: user.role || 'user' },
-            jwtSecret,
-            { expiresIn: '15m' }
-        );
-
-        const refreshToken = jwt.sign(
-            { id: user._id },
-            jwtSecret,
-            { expiresIn: '7d' }
-        );
+        // Generate JWT tokens using helper
+        const tokenPair = jwtHelper.generateTokenPair(user);
         
         // Get user's active package for response
         const activePackage = await Purchase.findOne({
@@ -499,9 +474,7 @@ exports.loginUser = async (req, res) => {
         
         console.log('Login successful for:', email);
         res.json({ 
-            token,
-            refreshToken,
-            expiresIn: 15 * 60,
+            ...tokenPair,
             user: {
                 id: user._id,
                 name: user.name,
@@ -516,7 +489,7 @@ exports.loginUser = async (req, res) => {
         res.status(500).json({ 
             error: 'Server Error', 
             message: error.message,
-            stack: process.env.NODE_ENV === 'production' ? '🥞' : error.stack 
+            //stack: process.env.NODE_ENV === 'production' ? '🥞' : error.stack 
         });
     }
 };
@@ -534,13 +507,9 @@ exports.refreshToken = async (req, res) => {
             return res.status(401).json({ error: 'Refresh token is required' });
         }
 
-        const jwtSecret = process.env.JWT_SECRET || '123xyz';
-        
-        jwt.verify(refreshToken, jwtSecret, async (err, decoded) => {
-            if (err) {
-                return res.status(403).json({ error: 'Invalid refresh token' });
-            }
-
+        try {
+            const decoded = await jwtHelper.verifyToken(refreshToken);
+            
             // Get fresh user data
             const user = await User.findById(decoded.id).select('-password');
             if (!user) {
@@ -548,17 +517,19 @@ exports.refreshToken = async (req, res) => {
             }
 
             // Generate new access token
-            const newAccessToken = jwt.sign(
-                { id: user._id, email: user.email, role: user.role || 'user' },
-                jwtSecret,
-                { expiresIn: '15m' }
-            );
+            const newAccessToken = jwtHelper.generateAccessToken({
+                id: user._id,
+                email: user.email,
+                role: user.role || 'user'
+            });
 
             res.json({ 
                 token: newAccessToken,
                 expiresIn: 15 * 60
             });
-        });
+        } catch (err) {
+            return res.status(403).json({ error: 'Invalid refresh token' });
+        }
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

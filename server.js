@@ -112,15 +112,17 @@ mongoose.connect(process.env.MONGODB_URI)
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-// STATIC 
-  app.use(express.static(path.join(__dirname, 'interfaces')));
-  app.use('/images', express.static(path.join(__dirname, 'interfaces', 'images')));
-  app.use('/interfaces', express.static(path.join(__dirname, 'interfaces')));
+// STATIC FILES - Serve from public directory in production, interfaces in development
+  const staticDir = process.env.NODE_ENV === 'production' ? 'public' : 'interfaces';
+  app.use(express.static(path.join(__dirname, staticDir)));
+  app.use('/images', express.static(path.join(__dirname, staticDir, 'images')));
+  app.use('/interfaces', express.static(path.join(__dirname, staticDir)));
 
 // ROUTES
   // root
   app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'interfaces', 'landing-page.html'));
+    const staticDir = process.env.NODE_ENV === 'production' ? 'public' : 'interfaces';
+    res.sendFile(path.join(__dirname, staticDir, 'landing-page.html'));
   });
 
   // API ROUTES
