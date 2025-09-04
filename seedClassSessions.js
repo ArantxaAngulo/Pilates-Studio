@@ -97,15 +97,9 @@ async function generateSessionsForMonth(startDate, classTypes, instructors) {
             }
             
             for (const slot of dailySlots) {
-                // Create session datetime in Mexico City timezone
+                // Create session datetime
                 const sessionDate = new Date(currentDate);
                 sessionDate.setHours(slot.hour, slot.minute, 0, 0);
-                
-                // Ensure consistent timezone handling (Mexico City is UTC-6)
-                const mexicoOffset = -6 * 60; // Mexico City offset in minutes
-                const serverOffset = sessionDate.getTimezoneOffset();
-                const adjustment = mexicoOffset - serverOffset;
-                sessionDate.setMinutes(sessionDate.getMinutes() + adjustment);
                 
                 // Skip if session is in the past
                 if (sessionDate < new Date()) continue;
