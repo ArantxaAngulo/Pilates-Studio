@@ -36,6 +36,9 @@ Thumbs.db
 dist/
 build/
 
+# Auto-generated public folder (created by Dockerfile)
+public/
+
 # Frontend output (optional, depending on your stack)
 interfaces/dist/
 interfaces/node_modules/
