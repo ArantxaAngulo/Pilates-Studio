@@ -295,7 +295,14 @@ async function loadTimeSlots(date) {
     if (!amSlotsContainer || !pmSlotsContainer) return;
     
     const dateKey = date.toISOString().split('T')[0];
-    const daySessions = availableSessions[dateKey] || [];
+    let daySessions = availableSessions[dateKey] || [];
+    
+    // Force sort all day sessions by time before processing
+    daySessions = daySessions.sort((a, b) => {
+        const timeA = new Date(a.startsAt).getTime();
+        const timeB = new Date(b.startsAt).getTime();
+        return timeA - timeB;
+    });
     
     // Get current time for comparison
     const now = new Date();
