@@ -7,7 +7,7 @@ async function initializeApiUrl() {
         // Try to get config from server
         const response = await fetch('/api/config');
         const config = await response.json();
-        API_BASE_URL = config.apiUrl + '/api';
+        API_BASE_URL = config.baseUrl + '/api'; // Use baseUrl instead of apiUrl
         console.log('API URL initialized from server config:', API_BASE_URL);
     } catch (error) {
         // Fallback to local detection
