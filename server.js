@@ -1,5 +1,8 @@
 // STARTING FILE FOR SERVER. TO RUN, TYPE 'node server.js' 
 require('dotenv').config(); // Load environment variables first
+
+// Set timezone to Mexico City for consistent date handling
+process.env.TZ = 'America/Mexico_City';
 const express = require('express');
 const app = express();
 const mongoose = require('mongoose');
