@@ -347,9 +347,25 @@ async function loadTimeSlots(date) {
         }
     });
     
-    // Sort sessions by time
-    amSessions.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
-    pmSessions.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+    // Sort sessions by time (ensure proper chronological order)
+    amSessions.sort((a, b) => {
+        const timeA = new Date(a.startsAt).getTime();
+        const timeB = new Date(b.startsAt).getTime();
+        return timeA - timeB;
+    });
+    pmSessions.sort((a, b) => {
+        const timeA = new Date(a.startsAt).getTime();
+        const timeB = new Date(b.startsAt).getTime();
+        return timeA - timeB;
+    });
+    
+    // Debug: log PM sessions order
+    if (pmSessions.length > 0) {
+        console.log('PM Sessions order:', pmSessions.map(s => {
+            const time = new Date(s.startsAt);
+            return `${time.getHours()}:${time.getMinutes().toString().padStart(2, '0')}`;
+        }));
+    }
     
     // Render AM sessions
     if (amSessions.length > 0) {
