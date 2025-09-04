@@ -60,11 +60,13 @@ const corsOptions = {
       'http://localhost:5000',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:5000',
-      process.env.FRONTEND_PROD_URL
-    ];
+      process.env.FRONTEND_PROD_URL,
+      process.env.BASE_URL,
+      'https://pilates-studio-production.up.railway.app'
+    ].filter(Boolean); // Remove undefined values
     
-    // Allow any ngrok URL
-    if (origin.includes('ngrok-free.app') || origin.includes('ngrok.io')) {
+    // Allow any ngrok URL or Railway URL
+    if (origin.includes('ngrok-free.app') || origin.includes('ngrok.io') || origin.includes('railway.app')) {
       return callback(null, true);
     }
     
