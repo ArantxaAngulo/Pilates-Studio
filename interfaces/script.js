@@ -1,3 +1,14 @@
+// Get API URL based on environment
+function getApiUrl() {
+  const currentHost = window.location.hostname;
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    return 'http://localhost:5000/api';
+  }
+  return '/api';
+}
+
+const API_URL = getApiUrl();
+
 // ======================
 // DOM UTILITIES
 // ======================
@@ -318,7 +329,7 @@ function initAuthForms() {
       }
       
       try {
-        const response = await fetch('http://localhost:5000/api/users/login', {
+        const response = await fetch(`${API_URL}/users/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -361,7 +372,7 @@ function initAuthForms() {
       if (!validateRegistration(form, formData)) return;
 
       try {
-        const response = await fetch('http://localhost:5000/api/users/register', {
+        const response = await fetch(`${API_URL}/users/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)

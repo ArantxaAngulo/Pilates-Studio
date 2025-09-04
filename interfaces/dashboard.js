@@ -1,3 +1,14 @@
+// Get API URL based on environment
+function getApiUrl() {
+  const currentHost = window.location.hostname;
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    return 'http://localhost:5000/api';
+  }
+  return '/api';
+}
+
+const API_URL = getApiUrl();
+
 // Check if user is authenticated when page loads
 document.addEventListener('DOMContentLoaded', function() {
     // Check authentication
@@ -418,7 +429,7 @@ async function handleReservation() {
         const userId = getUserIdFromToken();
         
         // Check eligibility from backend
-        const eligibilityResponse = await fetch(`http://localhost:5000/api/reservations/eligibility/${selectedSession._id}`, {
+        const eligibilityResponse = await fetch(`${API_URL}/reservations/eligibility/${selectedSession._id}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -468,7 +479,7 @@ async function handleReservation() {
 async function cancelReservation(reservationId) {
     try {
         // Get reservation details first
-        const reservationResponse = await fetch(`http://localhost:5000/api/reservations/${reservationId}`, {
+        const reservationResponse = await fetch(`${API_URL}/reservations/${reservationId}`, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
@@ -503,7 +514,7 @@ async function cancelReservation(reservationId) {
         }
         
         // Proceed with cancellation
-        const response = await fetch(`http://localhost:5000/api/reservations/${reservationId}`, {
+        const response = await fetch(`${API_URL}/reservations/${reservationId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`

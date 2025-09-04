@@ -345,6 +345,17 @@
     <script src="data-display.js"></script>
     <script src="script.js"></script>
     <script>
+    // Get API URL based on environment
+    function getApiUrl() {
+      const currentHost = window.location.hostname;
+      if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+        return 'http://localhost:5000/api';
+      }
+      return '/api';
+    }
+    
+    const API_URL = getApiUrl();
+    
     // Initialize MercadoPago
     const mp = new MercadoPago('APP_USR-b0be035f-37fb-4a36-b174-c86393b3b2f2', {
         locale: 'es-MX'
@@ -411,7 +422,7 @@
     // Check if user has already purchased trial package
     async function checkTrialEligibility(userId) {
         try {
-            const response = await fetch(`http://localhost:5000/api/purchases/user/${userId}`, {
+            const response = await fetch(`${API_URL}/purchases/user/${userId}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -549,7 +560,7 @@
         });
 
         // Create MercadoPago preference with all necessary data
-        const response = await fetch('http://localhost:5000/api/payments/create_preference', {
+        const response = await fetch(`${API_URL}/payments/create_preference`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

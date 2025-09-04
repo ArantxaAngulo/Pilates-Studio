@@ -323,6 +323,17 @@
   </div>
 
   <script>
+    // Get API URL based on environment
+    function getApiUrl() {
+      const currentHost = window.location.hostname;
+      if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+        return 'http://localhost:5000/api';
+      }
+      return '/api'; // Relative URL for production
+    }
+    
+    const API_URL = getApiUrl();
+    
     // List of allowed email domains (legitimate providers)
     const ALLOWED_EMAIL_DOMAINS = [
       // Global providers
@@ -504,7 +515,7 @@
 
       try {
         // Send to backend
-        const response = await fetch('http://localhost:5000/api/users/register', {
+        const response = await fetch(`${API_URL}/users/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
