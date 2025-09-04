@@ -1,24 +1,30 @@
 // Module for handling all API calls to the backend
-// Dynamically determine API URL based on current location
-function getApiBaseUrl() {
-    const currentHost = window.location.hostname;
-    const currentProtocol = window.location.protocol;
-    
-    /* If we're on ngrok, use ngrok URL
-    if (currentHost.includes('ngrok')) {
-        return `${currentProtocol}//${currentHost}/api`;
-    } */
-    
-    // If we're on localhost, use localhost
-    if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-        return 'http://localhost:5000/api';
+// Get API URL from server configuration
+let API_BASE_URL = '/api'; // Default fallback
+
+async function initializeApiUrl() {
+    try {
+        // Try to get config from server
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        API_BASE_URL = config.apiUrl + '/api';
+        console.log('API URL initialized from server config:', API_BASE_URL);
+    } catch (error) {
+        // Fallback to local detection
+        const currentHost = window.location.hostname;
+        
+        if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+            API_BASE_URL = 'http://localhost:5000/api';
+        } else {
+            API_BASE_URL = '/api'; // Relative URL for production
+        }
+        console.log('API URL fallback:', API_BASE_URL);
     }
-    
-    // For production, use your production API URL
-    return '/api'; // Relative URL for same-origin
+    return API_BASE_URL;
 }
 
-const API_BASE_URL = getApiBaseUrl();
+// Initialize on load
+initializeApiUrl();
 
 console.log('API Base URL:', API_BASE_URL);
 

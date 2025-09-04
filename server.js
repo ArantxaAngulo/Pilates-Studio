@@ -186,3 +186,13 @@ mongoose.connect(process.env.MONGODB_URI)
     res.json({ message: 'Backend activated' });
     console.log('Ping received from frontend!');
   });
+
+  // Frontend config endpoint - provides API URL from environment
+  app.get('/api/config', (req, res) => {
+    const config = require('./config/environment.js');
+    res.json({
+      apiUrl: config.getApiUrl(),
+      baseUrl: config.api.baseUrl,
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
