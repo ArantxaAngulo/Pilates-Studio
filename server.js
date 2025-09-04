@@ -49,6 +49,11 @@ app.use(helmet({
 }));
 app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
 
+// Trust proxy for Railway (required for rate limiting and real IP detection)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // CORS CONFIG (deepseek enhanced)
 const corsOptions = {
   origin: function (origin, callback) {
