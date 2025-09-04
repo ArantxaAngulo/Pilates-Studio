@@ -1,11 +1,15 @@
 // Use API_BASE_URL from api-service.js if available, otherwise create local API_URL
-const API_URL = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL : (() => {
+let API_URL;
+if (typeof API_BASE_URL !== 'undefined') {
+  API_URL = API_BASE_URL;
+} else {
   const currentHost = window.location.hostname;
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-    return 'http://localhost:5000/api';
+    API_URL = 'http://localhost:5000/api';
+  } else {
+    API_URL = '/api';
   }
-  return '/api';
-})();
+}
 
 // Handles dynamic calendar and reservation functionality
 
@@ -21,7 +25,9 @@ let totalUserCredits = 0; // Add total credits tracker
 // Initialize reservation system
 document.addEventListener('DOMContentLoaded', function() {
     if (document.querySelector('.calendar-grid')) {
-        initCalendar();
+        if (typeof initCalendar === 'function') {
+            initCalendar();
+        }
         initializeReservationSystem();
         const today = new Date();
         if (today.getDay() !== 0) { // Not Sunday
@@ -438,7 +444,9 @@ window.selectTimeSlot = function(element) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     if (document.querySelector('.calendar')) {
-        initCalendar();
+        if (typeof initCalendar === 'function') {
+            initCalendar();
+        }
         
         // Load real data when page loads
         const today = new Date();
