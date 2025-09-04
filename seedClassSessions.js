@@ -97,17 +97,10 @@ async function generateSessionsForMonth(startDate, classTypes, instructors) {
             }
             
             for (const slot of dailySlots) {
-                // Create session datetime adjusted for Mexico timezone display
-                const sessionDate = new Date(currentDate);
-                
-                // If running on server (Railway), adjust times to display correctly in Mexico timezone
-                // Railway is UTC, Mexico is UTC-6, so add 6 hours to the slot time
-                let adjustedHour = slot.hour;
-                if (process.env.NODE_ENV === 'production') {
-                    adjustedHour = slot.hour + 6; // Add 6 hours for UTC server to display correctly in Mexico
-                }
-                
-                sessionDate.setHours(adjustedHour, slot.minute, 0, 0);
+                // Create session datetime - use UTC but specify Mexico City times directly
+                const sessionDate = new Date();
+                sessionDate.setUTCFullYear(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+                sessionDate.setUTCHours(slot.hour + 6, slot.minute, 0, 0); // Mexico is UTC-6, so add 6 to store in UTC
                 
                 // Skip if session is in the past
                 if (sessionDate < new Date()) continue;
