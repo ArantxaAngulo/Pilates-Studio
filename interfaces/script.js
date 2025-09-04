@@ -1,15 +1,14 @@
-// Use API_BASE_URL from api-service.js if available, otherwise create local API_URL
-let API_URL;
-if (typeof API_BASE_URL !== 'undefined') {
-  API_URL = API_BASE_URL;
-} else {
+// Use API_BASE_URL from api-service.js if available, otherwise create fallback
+window.getAPIUrl = function() {
+  if (typeof API_BASE_URL !== 'undefined') {
+    return API_BASE_URL;
+  }
   const currentHost = window.location.hostname;
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-    API_URL = 'http://localhost:5000/api';
-  } else {
-    API_URL = '/api';
+    return 'http://localhost:5000/api';
   }
-}
+  return '/api';
+};
 
 // ======================
 // DOM UTILITIES
@@ -331,7 +330,7 @@ function initAuthForms() {
       }
       
       try {
-        const response = await fetch(`${API_URL}/users/login`, {
+        const response = await fetch(`${getAPIUrl()}/users/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -374,7 +373,7 @@ function initAuthForms() {
       if (!validateRegistration(form, formData)) return;
 
       try {
-        const response = await fetch(`${API_URL}/users/register`, {
+        const response = await fetch(`${getAPIUrl()}/users/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)

@@ -502,17 +502,16 @@
     </div>
 
     <script>
-        // Use API_BASE_URL from api-service.js if available, otherwise create local API_URL
-        let API_URL;
-        if (typeof API_BASE_URL !== 'undefined') {
-            API_URL = API_BASE_URL;
-        } else {
+        // Use API_BASE_URL from api-service.js if available
+        function getAPIUrl() {
+            if (typeof API_BASE_URL !== 'undefined') {
+                return API_BASE_URL;
+            }
             const currentHost = window.location.hostname;
             if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-                API_URL = 'http://localhost:5000/api';
-            } else {
-                API_URL = '/api';
+                return 'http://localhost:5000/api';
             }
+            return '/api';
         }
         
         // Global variables
@@ -556,7 +555,7 @@
             
             try {
                 // Use admin-specific login endpoint
-                const response = await fetch(`${API_URL}/admin/login`, {
+                const response = await fetch(`${getAPIUrl()}/admin/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
@@ -581,7 +580,7 @@
         // Verify token
         async function verifyToken(token) {
             try {
-                const response = await fetch(`${API_URL}/admin/dashboard/stats`, {
+                const response = await fetch(`${getAPIUrl()}/admin/dashboard/stats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -607,7 +606,7 @@
         // Load dashboard statistics
         async function loadStats() {
             try {
-                const response = await fetch(`${API_URL}/admin/dashboard/stats`, {
+                const response = await fetch(`${getAPIUrl()}/admin/dashboard/stats`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
                 });
                 
@@ -666,7 +665,7 @@
             tbody.innerHTML = '<tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>';
             
             try {
-                const response = await fetch(`${API_URL}/admin/users?page=${currentPage}`, {
+                const response = await fetch(`${getAPIUrl()}/admin/users?page=${currentPage}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
                 });
                 
@@ -709,7 +708,7 @@
             const filter = document.getElementById('reservationFilter').value;
             
             try {
-                const response = await fetch(`${API_URL}/admin/reservations?page=${currentPage}&status=${filter}`, {
+                const response = await fetch(`${getAPIUrl()}/admin/reservations?page=${currentPage}&status=${filter}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
                 });
                 
@@ -762,7 +761,7 @@
             const filter = document.getElementById('purchaseFilter').value;
             
             try {
-                const response = await fetch(`${API_URL}/admin/purchases?page=${currentPage}&status=${filter}`, {
+                const response = await fetch(`${getAPIUrl()}/admin/purchases?page=${currentPage}&status=${filter}`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
                 });
                 
@@ -812,7 +811,7 @@
             }
             
             try {
-                const response = await fetch(`${API_URL}/admin/reservations/${reservationId}`, {
+                const response = await fetch(`${getAPIUrl()}/admin/reservations/${reservationId}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
                 });

@@ -1,14 +1,13 @@
-// Use API_BASE_URL from api-service.js if available, otherwise create local API_URL
-let API_URL;
-if (typeof API_BASE_URL !== 'undefined') {
-  API_URL = API_BASE_URL;
-} else {
+// Use API_BASE_URL from api-service.js if available
+function getAPIUrl() {
+  if (typeof API_BASE_URL !== 'undefined') {
+    return API_BASE_URL;
+  }
   const currentHost = window.location.hostname;
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
-    API_URL = 'http://localhost:5000/api';
-  } else {
-    API_URL = '/api';
+    return 'http://localhost:5000/api';
   }
+  return '/api';
 }
 
 // Handles dynamic calendar and reservation functionality
@@ -88,7 +87,7 @@ async function checkUserActivePackages(userId) {
         }
 
         // Get ALL active packages, not just one
-        const response = await fetch(`${API_URL}/purchases/user/${userId}`, {
+        const response = await fetch(`${getAPIUrl()}/purchases/user/${userId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -577,7 +576,7 @@ async function handleReservation() {
         const userId = getUserIdFromToken();
         
         // Check eligibility from backend
-        const eligibilityResponse = await fetch(`${API_URL}/reservations/eligibility/${selectedSession._id}`, {
+        const eligibilityResponse = await fetch(`${getAPIUrl()}/reservations/eligibility/${selectedSession._id}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -635,7 +634,7 @@ async function handleReservation() {
 async function cancelReservation(reservationId) {
     try {
         // Get reservation details first
-        const reservationResponse = await fetch(`${API_URL}/reservations/${reservationId}`, {
+        const reservationResponse = await fetch(`${getAPIUrl()}/reservations/${reservationId}`, {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
@@ -670,7 +669,7 @@ async function cancelReservation(reservationId) {
         }
         
         // Proceed with cancellation
-        const response = await fetch(`${API_URL}/reservations/${reservationId}`, {
+        const response = await fetch(`${getAPIUrl()}/reservations/${reservationId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -816,7 +815,7 @@ async function processSingleClassPayment(sessionId, userId) {
         const token = localStorage.getItem('token');
         
         // Get session details for the payment
-        const sessionResponse = await fetch(`${API_URL}/class-sessions/${sessionId}`, {
+        const sessionResponse = await fetch(`${getAPIUrl()}/class-sessions/${sessionId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -834,7 +833,7 @@ async function processSingleClassPayment(sessionId, userId) {
         const classSessionName = classSession.classTypeId?.name || 'Clase de Pilates';
         
         // Create MercadoPago preference for single class payment
-        const paymentResponse = await fetch(`${API_URL}/payments/create_single_class_preference`, {
+        const paymentResponse = await fetch(`${getAPIUrl()}/payments/create_single_class_preference`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
