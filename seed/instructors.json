@@ -1,62 +1,6 @@
 [
   {
     "name": {
-      "first": "María",
-      "last": "Rodriguez"
-    },
-    "bio": "Instructora de yoga y Pilates con formación en India y certificaciones internacionales. Combina técnicas tradicionales con enfoques modernos para crear experiencias transformadoras.",
-    "certifications": [
-      "200hr Yoga Teacher Training",
-      "500hr Advanced Yoga Certification",
-      "Pilates Comprehensive Instructor",
-      "Mindfulness & Meditation Teacher"
-    ],
-    "profilePictureUrl": "/images/pancakes.png"
-  },
-  {
-    "name": {
-      "first": "Sofia",
-      "last": "López"
-    },
-    "bio": "Ex-bailarina profesional convertida en instructora de barre y Pilates. Su estilo único combina la gracia del ballet con la fuerza del fitness funcional.",
-    "certifications": [
-      "Barre Above Instructor",
-      "Classical Pilates Certification",
-      "Ballet Fitness Specialist",
-      "TRX Suspension Training"
-    ],
-    "profilePictureUrl": "/images/pancakes.png"
-  },
-  {
-    "name": {
-      "first": "Carmen",
-      "last": "Fernández"
-    },
-    "bio": "Fisioterapeuta y instructora de Pilates especializada en recuperación de lesiones y fortalecimiento preventivo. Enfoque personalizado para cada estudiante.",
-    "certifications": [
-      "Licenciatura en Fisioterapia",
-      "BASI Pilates Comprehensive",
-      "Injury Prevention Specialist",
-      "Clinical Pilates Certification"
-    ],
-    "profilePictureUrl": "/images/pancakes.png"
-  },
-  {
-    "name": {
-      "first": "Elena",
-      "last": "Santos"
-    },
-    "bio": "Instructora de alta energía especializada en Power & Burn y clases de acondicionamiento físico. Motiva a sus estudiantes a superar sus límites con seguridad y diversión.",
-    "certifications": [
-      "NASM Personal Trainer",
-      "Power Pilates Instructor",
-      "HIIT Training Specialist",
-      "Nutrition Coach Level 1"
-    ],
-    "profilePictureUrl": "/images/pancakes.png"
-  },
-  {
-    "name": {
       "first": "Violeta",
       "last": "Martínez"
     },

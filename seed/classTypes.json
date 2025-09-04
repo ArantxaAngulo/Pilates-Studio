@@ -4,6 +4,6 @@
     "name": "Pilates Reformer",
     "description": "Ejercicios de Pilates usando la máquina reformer para fortalecer y tonificar todo el cuerpo. Perfecto para principiantes que quieren aprender la técnica correcta.",
     "level": "Beginner",
-    "defaultCapacity": 10
+    "defaultCapacity": 5
   }
 ]

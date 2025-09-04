@@ -3,56 +3,63 @@
     "_id": "pkg-trial",
     "name": "Clase de Prueba",
     "creditCount": 1,
-    "validDays": 14,
+    "validDays": 6,
     "price": 150
   },
   {
     "_id": "pkg-single",
     "name": "1 Clase",
     "creditCount": 1,
-    "validDays": 28,
+    "validDays": 6,
     "price": 250
   },
   {
     "_id": "pkg-3",
     "name": "3 Clases",
     "creditCount": 3,
-    "validDays": 28,
+    "validDays": 14,
     "price": 650
+  },
+  {
+    "_id": "pkg-6",
+    "name": "6 Clases",
+    "creditCount": 6,
+    "validDays": 19,
+    "price": 1250
   },
   {
     "_id": "pkg-9",
     "name": "9 Clases",
     "creditCount": 9,
-    "validDays": 35,
+    "validDays": 26,
     "price": 1800
   },
   {
     "_id": "pkg-14",
     "name": "14 Clases",
     "creditCount": 14,
-    "validDays": 35,
+    "validDays": 30,
     "price": 2600
   },
   {
     "_id": "pkg-19",
     "name": "19 Clases",
     "creditCount": 19,
-    "validDays": 42,
+    "validDays": 40,
     "price": 3000
   },
   {
     "_id": "pkg-24",
     "name": "24 Clases",
     "creditCount": 24,
-    "validDays": 49,
+    "validDays": 48,
     "price": 3500
   },
   {
-    "_id": "pkg-35",
-    "name": "35 Clases",
-    "creditCount": 35,
-    "validDays": 56,
+    "_id": "pkg-ilim",
+    "name": "Clases Ilimitadas",
+    "creditCount": 50,
+    "validDays": 38,
     "price": 4700
   }
 ]
