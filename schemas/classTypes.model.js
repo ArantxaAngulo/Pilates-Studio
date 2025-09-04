@@ -10,7 +10,7 @@ const classTypesSchema = new mongoose.Schema({
     level: String, // "Beginner", "Advanced"
     defaultCapacity: {
       type: Number,
-      default: 10
+      default: 5
     }
   });
 

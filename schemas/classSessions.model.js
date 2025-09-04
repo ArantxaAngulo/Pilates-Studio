@@ -14,7 +14,7 @@ const classSessionsSchema = new mongoose.Schema({
     },
     capacity: {
       type: Number,
-      default: 10
+      default: 5
     },
     reservedCount: {
       type: Number,

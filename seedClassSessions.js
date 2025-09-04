@@ -109,13 +109,13 @@ async function generateSessionsForMonth(startDate, classTypes, instructors) {
                 const instructor = instructors[Math.floor(Math.random() * instructors.length)];
                 
                 // Set capacity based on class type
-                const capacity = classType.defaultCapacity || 10;
+                const capacity = classType.defaultCapacity || 5;
                 
                 // Create session
                 sessions.push({
                     classTypeId: classType._id,
                     startsAt: sessionDate,
-                    capacity: 10,
+                    capacity: 5,
                     reservedCount: 0, // Start with no reservations
                     instructorId: instructor._id
                 });

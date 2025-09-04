@@ -87,7 +87,7 @@ exports.createClassType = async (req, res) => {
             name,
             description,
             level,
-            defaultCapacity: defaultCapacity || 10
+            defaultCapacity: defaultCapacity || 5
         });
 
         res.status(201).json({

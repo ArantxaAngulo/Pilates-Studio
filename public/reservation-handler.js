@@ -266,10 +266,10 @@ function updateClassInfoDisplay(date) {
         }
     }
     
-    // Update capacity to show default of 10 when no session selected
+    // Update capacity to show default of 5 when no session selected
     const classCapacity = document.querySelector('.class-capacity');
     if (classCapacity && !selectedSession) {
-        classCapacity.textContent = '--/10 👤';
+        classCapacity.textContent = '--/5 👤';
     }
 }
 
@@ -452,8 +452,8 @@ function updateSessionDetails() {
     
     const classCapacity = document.querySelector('.class-capacity');
     if (classCapacity) {
-        // Default capacity is 10 for all classes
-        const capacity = selectedSession.capacity || 10;
+        // Default capacity is 5 for all classes
+        const capacity = selectedSession.capacity || 5;
         const reservedCount = selectedSession.reservedCount || 0;
         classCapacity.textContent = `${reservedCount}/${capacity} 👤`;
     }
