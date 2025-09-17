@@ -70,7 +70,8 @@ const corsOptions = {
       'http://127.0.0.1:5000',
       process.env.FRONTEND_PROD_URL,
       process.env.BASE_URL,
-      'https://pilates-studio-production.up.railway.app'
+      'https://www.rebetta-studio.fit',
+      'https://rebetta-studio.fit'
     ].filter(Boolean); // Remove undefined values
     
     // Allow any ngrok URL or Railway URL
@@ -203,6 +204,7 @@ mongoose.connect(process.env.MONGODB_URI)
     res.json({
       apiUrl: config.getApiUrl(),
       baseUrl: config.api.baseUrl,
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      mercadopagoPublicKey: process.env.MP_PUBLIC_KEY
     });
   });
