@@ -34,16 +34,16 @@ module.exports = {
     maxAdvanceBookingDays: 30,
     
     // Minimum hours before class to book
-    minHoursBeforeClass: 2,
+    minHoursBeforeClass: 8,
     
     // Cancellation policy (hours before class)
-    cancellationDeadlineHours: 12,
+    cancellationDeadlineHours: 8,
     
     // Whether to refund credits on cancellation
     refundCreditsOnCancellation: true,
     
     // Maximum reservations per day per user
-    maxReservationsPerDay: 3,
+    maxReservationsPerDay: 5,
     
     // Allow waitlist when class is full
     allowWaitlist: false,
