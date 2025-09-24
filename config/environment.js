@@ -42,7 +42,7 @@ module.exports = {
         successUrl: `${baseUrl}interfaces/success.html`,
         failureUrl: `${baseUrl}interfaces/failure.html`,
         pendingUrl: `${baseUrl}interfaces/pending.html`,
-        webhookUrl: `${baseUrl}/api/payments/webhook`
+        webhookUrl: `${baseUrl}api/payments/webhook`
   },
   
   // Database configuration
