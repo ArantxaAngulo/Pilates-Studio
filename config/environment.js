@@ -39,9 +39,9 @@ module.exports = {
   
   // MercadoPago URLs - environment aware
   mercadoPago: {
-        successUrl: `${BASE_URL}interfaces/success.html`,
-        failureUrl: `${BASE_URL}interfaces/failure.html`,
-        pendingUrl: `${BASE_URL}interfaces/pending.html`,
+        successUrl: `${baseUrl}interfaces/success.html`,
+        failureUrl: `${baseUrl}interfaces/failure.html`,
+        pendingUrl: `${baseUrl}interfaces/pending.html`,
         webhookUrl: `${baseUrl}/api/payments/webhook`
   },
   
