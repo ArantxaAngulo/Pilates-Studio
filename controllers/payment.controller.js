@@ -32,6 +32,9 @@ const FRONTEND_URL = getFrontendUrl();
 console.log('MP_ACCESS_TOKEN loaded:', process.env.MP_ACCESS_TOKEN ? 'Yes' : 'No');
 console.log('🔗 BASE_URL:', BASE_URL);
 console.log('🔗 Webhook URL will be:', `${BASE_URL}/api/payments/webhook`);
+console.log('🔗 Success URL will be:', `${BASE_URL}/interfaces/success.html`);
+console.log('🔗 Failure URL will be:', `${BASE_URL}/interfaces/failure.html`);
+console.log('🔗 Pending URL will be:', `${BASE_URL}/interfaces/pending.html`);
 
 const client = new MercadoPagoConfig({ 
   accessToken: process.env.MP_ACCESS_TOKEN,
@@ -119,9 +122,9 @@ exports.createPreference = async (req, res) => {
         }
       ],
       back_urls: {
-        success: `${BASE_URL}interfaces/success.html`,
-        failure: `${BASE_URL}interfaces/failure.html`,
-        pending: `${BASE_URL}interfaces/pending.html`
+        success: `${BASE_URL}/interfaces/success.html`,
+        failure: `${BASE_URL}/interfaces/failure.html`,
+        pending: `${BASE_URL}/interfaces/pending.html`
       },
       notification_url: `${BASE_URL}/api/payments/webhook`,
       auto_return: 'approved',
@@ -368,9 +371,9 @@ exports.createSingleClassPreference = async (req, res) => {
                 currency_id: 'MXN'
             }],
             back_urls: {
-              success: `${BASE_URL}interfaces/success.html`,
-              failure: `${BASE_URL}interfaces/failure.html`,
-              pending: `${BASE_URL}interfaces/pending.html`
+              success: `${BASE_URL}/interfaces/success.html`,
+              failure: `${BASE_URL}/interfaces/failure.html`,
+              pending: `${BASE_URL}/interfaces/pending.html`
             },
             notification_url: `${BASE_URL}/api/payments/webhook`,
             auto_return: 'approved',
