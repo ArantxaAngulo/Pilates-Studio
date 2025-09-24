@@ -15,6 +15,15 @@ router.get('/pending', paymentController.handlePending);
 // Webhook for payment notifications
 router.post('/webhook', paymentController.webhook);
 
+// Test webhook URL accessibility
+router.get('/webhook-test', (req, res) => {
+    res.json({ 
+        message: '✅ Webhook endpoint is accessible!',
+        timestamp: new Date().toISOString(),
+        url: req.originalUrl 
+    });
+});
+
 router.post('/test-webhook', async (req, res) => {
     // Simulate a webhook with test data
     const testWebhookData = {

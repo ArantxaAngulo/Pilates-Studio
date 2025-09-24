@@ -14,14 +14,14 @@ require('dotenv').config();
 // Get URLs from environment variables
 const getBaseUrl = () => {
     if (process.env.NODE_ENV === 'production') {
-        return 'https://www.rebetta-studio.fit/' || process.env.BASE_URL;
+        return 'https://www.rebetta-studio.fit' || process.env.BASE_URL;
     }
     return process.env.BASE_URL || 'http://localhost:5000';
 };
 
 const getFrontendUrl = () => {
     if (process.env.NODE_ENV === 'production') {
-        return 'https://www.rebetta-studio.fit/' || process.env.FRONTEND_URL;
+        return 'https://www.rebetta-studio.fit' || process.env.FRONTEND_URL;
     }
     return process.env.FRONTEND_URL || 'http://localhost:5000';
 };
@@ -30,6 +30,8 @@ const BASE_URL = getBaseUrl();
 const FRONTEND_URL = getFrontendUrl();
 
 console.log('MP_ACCESS_TOKEN loaded:', process.env.MP_ACCESS_TOKEN ? 'Yes' : 'No');
+console.log('🔗 BASE_URL:', BASE_URL);
+console.log('🔗 Webhook URL will be:', `${BASE_URL}/api/payments/webhook`);
 
 const client = new MercadoPagoConfig({ 
   accessToken: process.env.MP_ACCESS_TOKEN,
