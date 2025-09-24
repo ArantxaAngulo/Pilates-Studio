@@ -61,14 +61,6 @@ exports.createPreference = async (req, res) => {
     const { title, price, quantity, external_reference, packageId, userId, isTrial } = req.body;
 
     console.log('Request body:', req.body);
-    
-    console.log('=== MERCADOPAGO PREFERENCE DEBUG ===');
-    console.log('Access Token:', process.env.MP_ACCESS_TOKEN?.substring(0, 20) + '...');
-    console.log('Is Production Token:', process.env.MP_ACCESS_TOKEN?.startsWith('APP_USR'));
-    console.log('BASE_URL:', BASE_URL);
-    console.log('FRONTEND_URL:', FRONTEND_URL);
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-
 
     // Build the external_reference if not provided
     let finalExternalReference = external_reference;
@@ -124,9 +116,9 @@ exports.createPreference = async (req, res) => {
         }
       ],
       back_urls: {
-        success: `${BASE_URL}/interfaces/success.html`,
+        success: `${BASE_URL}interfaces/success.html`,
         failure: `${BASE_URL}interfaces/failure.html`,
-        pending: `${BASE_URL}/interfaces/pending.html`
+        pending: `${BASE_URL}interfaces/pending.html`
       },
       notification_url: `${BASE_URL}/api/payments/webhook`,
       auto_return: 'approved',
@@ -143,17 +135,11 @@ exports.createPreference = async (req, res) => {
     console.log('Creating preference with MercadoPago...');
 
     const response = await preference.create({ body: preferenceData });
-
-    console.log('=== MERCADOPAGO RESPONSE ===');
-    console.log('Sandbox URL exists:', !!response.sandbox_init_point);
-    console.log('Production URL exists:', !!response.init_point);
-    console.log('Using URL type:', response.sandbox_init_point ? 'SANDBOX' : 'PRODUCTION');
-    console.log('============================');
     
     console.log('Preference created successfully:', response.id);
-    console.log('Init point:', response.sandbox_init_point || response.init_point);
+    console.log('Init point:', response.init_point || response.sandbox_init_point);
     
-    const checkoutUrl = response.sandbox_init_point || response.init_point;
+    const checkoutUrl = response.init_point || response.sandbox_init_point;
     
     res.status(200).json({ 
       init_point: checkoutUrl,
@@ -379,9 +365,9 @@ exports.createSingleClassPreference = async (req, res) => {
                 currency_id: 'MXN'
             }],
             back_urls: {
-                success: `${BASE_URL}/api/payments/success`,
-                failure: `${BASE_URL}/api/payments/failure`,
-                pending: `${BASE_URL}/api/payments/pending`
+              success: `${BASE_URL}interfaces/success.html`,
+              failure: `${BASE_URL}interfaces/failure.html`,
+              pending: `${BASE_URL}interfaces/pending.html`
             },
             notification_url: `${BASE_URL}/api/payments/webhook`,
             auto_return: 'approved',
@@ -403,7 +389,7 @@ exports.createSingleClassPreference = async (req, res) => {
         const response = await preference.create({ body: preferenceData });
         res.json({
             id: response.id,
-            init_point: response.sandbox_init_point || response.init_point
+            init_point: response.init_point || response.sandbox_init_point
         });
 
     } catch (error) {
