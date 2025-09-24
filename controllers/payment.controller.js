@@ -13,14 +13,14 @@ require('dotenv').config();
 // Get URLs from environment variables
 const getBaseUrl = () => {
     if (process.env.NODE_ENV === 'production') {
-        return process.env.PRODUCTION_BASE_URL || process.env.BASE_URL;
+        return 'https://www.rebetta-studio.fit/' || process.env.BASE_URL;
     }
-    return process.env.NGROK_URL || process.env.BASE_URL || 'http://localhost:5000';
+    return process.env.BASE_URL || 'http://localhost:5000';
 };
 
 const getFrontendUrl = () => {
     if (process.env.NODE_ENV === 'production') {
-        return process.env.PRODUCTION_FRONTEND_URL || process.env.FRONTEND_URL;
+        return 'https://www.rebetta-studio.fit/' || process.env.FRONTEND_URL;
     }
     return process.env.FRONTEND_URL || 'http://localhost:5000';
 };
@@ -62,6 +62,14 @@ exports.createPreference = async (req, res) => {
 
     console.log('Request body:', req.body);
     
+    console.log('=== MERCADOPAGO PREFERENCE DEBUG ===');
+    console.log('Access Token:', process.env.MP_ACCESS_TOKEN?.substring(0, 20) + '...');
+    console.log('Is Production Token:', process.env.MP_ACCESS_TOKEN?.startsWith('APP_USR'));
+    console.log('BASE_URL:', BASE_URL);
+    console.log('FRONTEND_URL:', FRONTEND_URL);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+
+
     // Build the external_reference if not provided
     let finalExternalReference = external_reference;
     if (!finalExternalReference && packageId) {
@@ -116,9 +124,9 @@ exports.createPreference = async (req, res) => {
         }
       ],
       back_urls: {
-        success: `${BASE_URL}/api/payments/success`,
-        failure: `${BASE_URL}/api/payments/failure`,
-        pending: `${BASE_URL}/api/payments/pending`
+        success: `${BASE_URL}/interfaces/success.html`,
+        failure: `${BASE_URL}interfaces/failure.html`,
+        pending: `${BASE_URL}/interfaces/pending.html`
       },
       notification_url: `${BASE_URL}/api/payments/webhook`,
       auto_return: 'approved',
@@ -135,6 +143,12 @@ exports.createPreference = async (req, res) => {
     console.log('Creating preference with MercadoPago...');
 
     const response = await preference.create({ body: preferenceData });
+
+    console.log('=== MERCADOPAGO RESPONSE ===');
+    console.log('Sandbox URL exists:', !!response.sandbox_init_point);
+    console.log('Production URL exists:', !!response.init_point);
+    console.log('Using URL type:', response.sandbox_init_point ? 'SANDBOX' : 'PRODUCTION');
+    console.log('============================');
     
     console.log('Preference created successfully:', response.id);
     console.log('Init point:', response.sandbox_init_point || response.init_point);
