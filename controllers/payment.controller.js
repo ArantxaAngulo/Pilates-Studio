@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const envConfig = require('../config/environment');
 const Purchase = require('../schemas/purchases.model');
 const Package = require('../schemas/packages.model');
@@ -401,6 +402,61 @@ exports.createSingleClassPreference = async (req, res) => {
     }
 };
 
+// Helper function to validate MercadoPago webhook signature
+const validateWebhookSignature = (req) => {
+  try {
+    const xSignature = req.headers['x-signature'];
+    const xRequestId = req.headers['x-request-id'];
+    
+    if (!xSignature || !xRequestId) {
+      console.error('🔴 Missing MercadoPago signature headers');
+      return false;
+    }
+
+    // Extract ts and hash from x-signature header
+    const signatureParts = xSignature.split(',');
+    let ts, hash;
+    
+    signatureParts.forEach(part => {
+      const [key, value] = part.split('=');
+      if (key && value) {
+        if (key.trim() === 'ts') ts = value.trim();
+        if (key.trim() === 'v1') hash = value.trim();
+      }
+    });
+
+    if (!ts || !hash) {
+      console.error('🔴 Invalid signature format');
+      return false;
+    }
+
+    // Create signature string
+    const dataString = JSON.stringify(req.body);
+    const manifest = `id:${req.body?.data?.id || ''};request-id:${xRequestId};ts:${ts};`;
+    
+    // Generate HMAC
+    const hmac = crypto.createHmac('sha256', process.env.MP_WEBHOOK_SECRET);
+    hmac.update(manifest);
+    const expectedHash = hmac.digest('hex');
+
+    const isValid = expectedHash === hash;
+    
+    if (!isValid) {
+      console.error('🔴 Webhook signature validation failed');
+      console.error('Expected:', expectedHash);
+      console.error('Received:', hash);
+      console.error('Manifest:', manifest);
+    } else {
+      console.log('✅ Webhook signature validated successfully');
+    }
+
+    return isValid;
+  } catch (error) {
+    console.error('🔴 Error validating webhook signature:', error);
+    return false;
+  }
+};
+
 // Webhook for payment notifications (IPN)
 exports.webhook = async (req, res) => {
   const session = await mongoose.startSession();
@@ -409,39 +465,81 @@ exports.webhook = async (req, res) => {
   try {
     const { id, type, data } = req.body;
     
-    console.log('Webhook received:', { id, type, data });
+    console.log('🔔 Webhook received:', { 
+      id, 
+      type, 
+      data, 
+      headers: {
+        'x-signature': req.headers['x-signature'],
+        'x-request-id': req.headers['x-request-id'],
+        'user-agent': req.headers['user-agent']
+      }
+    });
     
-    // 1. Handle test webhooks 
-    if (id === "123456" || (data && data.id === "1234157574")) {
-      console.log("✅ Accepted test webhook");
+    // 1. Handle test webhooks (bypass signature validation for MercadoPago dashboard tests)
+    if (id === "123456" || (data && (data.id === "1234157574" || data.id === "123456"))) {
+      console.log("✅ Accepted test webhook from MercadoPago dashboard");
       await session.commitTransaction();
       return res.status(200).json({ status: "ok", message: "Test webhook accepted" });
     }
 
+    // 2. Validate webhook signature for production webhooks
+    if (process.env.MP_WEBHOOK_SECRET && !validateWebhookSignature(req)) {
+      console.error('🔴 Webhook signature validation failed - rejecting request');
+      await session.abortTransaction();
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
     if (type === 'payment' && data && data.id) {
-      console.log(`🟠 Payment webhook received (ID: ${data.id})`);
+      console.log(`🟠 Processing payment webhook (ID: ${data.id})`);
       
       let payment;
       let paymentStatus;
       let metadata;
 
-      payment = await paymentClient.get({ id: data.id });
-      paymentStatus = payment.status;
-      console.log(`Payment ${data.id} status: ${paymentStatus}`);
+      // Improved MercadoPago API error handling
+      try {
+        console.log(`📡 Fetching payment details from MercadoPago API...`);
+        payment = await paymentClient.get({ id: data.id });
+        paymentStatus = payment.status;
+        console.log(`💳 Payment ${data.id} status: ${paymentStatus}`);
+        console.log(`💳 Payment details:`, {
+          id: payment.id,
+          status: payment.status,
+          status_detail: payment.status_detail,
+          external_reference: payment.external_reference,
+          transaction_amount: payment.transaction_amount,
+          currency_id: payment.currency_id,
+          date_created: payment.date_created,
+          payer_email: payment.payer?.email
+        });
+      } catch (mpError) {
+        console.error(`🔴 MercadoPago API error for payment ${data.id}:`, {
+          status: mpError.status,
+          message: mpError.message,
+          cause: mpError.cause
+        });
+        
+        // Don't fail the webhook for API errors - MercadoPago might retry
+        await session.commitTransaction();
+        return res.status(200).send(`OK (MP API Error: ${mpError.status})`);
+      }
       
       if (paymentStatus !== 'approved') {
+        console.log(`⚠️ Payment ${data.id} not approved (status: ${paymentStatus}), ignoring webhook`);
         await session.commitTransaction();
         return res.status(200).send(`OK (Ignored status: ${paymentStatus})`);
       }
 
       if (!payment.external_reference) {
-        console.error("🔴 Missing external_reference");
+        console.error("🔴 Missing external_reference in payment");
         await session.commitTransaction();
         return res.status(200).send("OK (Missing external_reference)");
       }
 
       try {
         metadata = JSON.parse(payment.external_reference);
+        console.log(`📋 Parsed metadata:`, metadata);
       } catch (e) {
         console.error("🔴 Invalid external_reference format:", payment.external_reference);
         await session.commitTransaction();
@@ -539,19 +637,39 @@ exports.webhook = async (req, res) => {
         }, session);
         
         if (purchaseResult.success) {
-          console.log(`🟢 Purchase created: ${purchaseResult.purchase._id}`);
+          console.log(`🟢 Package purchase created successfully:`, {
+            purchaseId: purchaseResult.purchase._id,
+            userId: metadata.userId,
+            packageId: metadata.packageId,
+            paymentId: data.id,
+            creditsLeft: purchaseResult.purchase.creditsLeft,
+            expiresAt: purchaseResult.purchase.expiresAt
+          });
         } else {
-          console.error(`🔴 Purchase creation failed: ${purchaseResult.error}`);
+          console.error(`🔴 Package purchase creation failed:`, {
+            error: purchaseResult.error,
+            userId: metadata.userId,
+            packageId: metadata.packageId,
+            paymentId: data.id
+          });
+          // Still commit transaction to avoid webhook retries for business logic errors
         }
       }
 
       await session.commitTransaction();
     }
 
+    console.log('✅ Webhook processing completed successfully');
     res.status(200).send('OK');
   } catch (error) {
-    await session.abortTransaction();
-    console.error('🔴 Webhook error:', error);
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    console.error('🔴 Critical webhook error:', {
+      message: error.message,
+      stack: error.stack,
+      body: req.body
+    });
     res.status(200).send('OK (Error processed)');
   } finally {
     session.endSession();
