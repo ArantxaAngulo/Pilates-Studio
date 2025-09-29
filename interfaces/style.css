@@ -1229,8 +1229,9 @@ body {
     .hero-content {
         margin-left: 2rem;
         max-width: 90%;
+        margin-top: 4rem;
     }
-    
+
     .hero-content h1 {
         font-size: 2.5rem;
     }
@@ -1287,5 +1288,16 @@ body {
         top: auto;
         right: auto;
         margin-bottom: 30px;
+    }
+}
+
+/* Additional mobile styling for hero title positioning */
+@media (max-width: 576px) {
+    .hero-content {
+        margin-top: 5rem;
+    }
+
+    .hero-content h1 {
+        font-size: 2rem;
     }
 }

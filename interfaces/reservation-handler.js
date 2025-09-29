@@ -642,8 +642,14 @@ async function handleReservation() {
                 }
             }
         } else {
+            // Check if user is new (no packages ever purchased)
+            if (userActivePackages.length === 0 && totalUserCredits === 0) {
+                showAlert('¡Bienvenido! Si eres nueva/o te recomendamos comprar primero la "Clase de Prueba" desde Paquetes antes de reservar una clase individual.', 'warning');
+                return;
+            }
+
             // Single class payment flow - no credits available
-            const confirmPayment = confirm(`Esta clase tiene un costo de $270 MXN. ¿Deseas continuar con el pago?`);
+            const confirmPayment = confirm(`Esta clase tiene un costo de $250 MXN. ¿Deseas continuar con el pago?`);
             if (confirmPayment) {
                 await processSingleClassPayment(selectedSession._id, userId);
             }
@@ -779,7 +785,7 @@ function updateReservationUI() {
             reserveBtn.textContent = `Reservar (${totalUserCredits} ${totalUserCredits === 1 ? 'crédito' : 'créditos'} restantes)`;
         }
     } else {
-        reserveBtn.textContent = 'Reservar ($270 MXN)';
+        reserveBtn.textContent = 'Reservar ($250 MXN)';
     }
 }
 
@@ -791,7 +797,7 @@ function showAlert(message, type = 'success') {
     const alertDiv = document.createElement('div');
     alertDiv.className = `custom-alert alert-${type}`;
     alertDiv.textContent = message;
-    
+
     alertDiv.style.position = 'fixed';
     alertDiv.style.top = '20px';
     alertDiv.style.right = '20px';
@@ -800,10 +806,18 @@ function showAlert(message, type = 'success') {
     alertDiv.style.color = 'white';
     alertDiv.style.zIndex = '9999';
     alertDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-    alertDiv.style.backgroundColor = type === 'error' ? '#ef4444' : '#10b981';
-    
+
+    // Set background color based on type
+    if (type === 'error') {
+        alertDiv.style.backgroundColor = '#ef4444';
+    } else if (type === 'warning') {
+        alertDiv.style.backgroundColor = '#f97316'; // Pink-orange color
+    } else {
+        alertDiv.style.backgroundColor = '#10b981';
+    }
+
     document.body.appendChild(alertDiv);
-    
+
     setTimeout(() => {
         alertDiv.style.opacity = '0';
         alertDiv.style.transition = 'opacity 0.5s ease';
@@ -852,7 +866,7 @@ async function processSingleClassPayment(sessionId, userId) {
         const classSession = sessionData.data.classSession;
         
         // Prepare data for MercadoPago payment
-        const singleClassPrice = 270; // Fixed price for single class
+        const singleClassPrice = 250; // Fixed price for single class
         const classSessionName = classSession.classTypeId?.name || 'Clase de Pilates';
         
         // Create MercadoPago preference for single class payment

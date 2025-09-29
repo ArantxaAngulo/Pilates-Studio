@@ -336,7 +336,7 @@ const createReservationInternal = async (req, res) => {
                 await Reservation.findOneAndDelete({ userId, sessionId, paymentStatus: 'pending', paymentMethod: 'single_class' }).session(session);
 
 
-                const singleClassPrice = 270; // Set price from your business rules
+                const singleClassPrice = 250; // Set price from your business rules
                 const classSessionName = classSession.classTypeId ? (await ClassSession.populate(classSession, { path: 'classTypeId', select: 'name' })).classTypeId.name : 'Pilates';
 
                 return {

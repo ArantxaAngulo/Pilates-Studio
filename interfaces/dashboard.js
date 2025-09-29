@@ -464,7 +464,7 @@ async function handleReservation() {
             }
         } else {
             // Single class payment flow
-            const confirmPayment = confirm(`Esta clase tiene un costo de $270 MXN. ¿Deseas continuar con el pago?`);
+            const confirmPayment = confirm(`Esta clase tiene un costo de $250 MXN. ¿Deseas continuar con el pago?`);
             if (confirmPayment) {
                 // Redirect to payment...
                 await processSingleClassPayment(selectedSession._id, userId);

@@ -383,4 +383,197 @@ router.delete('/reservations/:id', async (req, res) => {
     }
 });
 
+// DELETE USER (Admin can delete any user permanently)
+router.delete('/users/:id', async (req, res) => {
+    try {
+        const userId = req.params.id;
+
+        // Find the user first
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Prevent admin from deleting themselves
+        if (req.user.id === userId) {
+            return res.status(400).json({ error: 'Cannot delete your own admin account' });
+        }
+
+        // Get user's active reservations for upcoming classes
+        const upcomingSessions = await ClassSession.find({
+            startsAt: { $gte: new Date() }
+        }).select('_id');
+
+        const activeReservations = await Reservation.find({
+            userId: userId,
+            sessionId: { $in: upcomingSessions.map(s => s._id) }
+        }).populate('sessionId');
+
+        // Update session reserved counts for active reservations
+        for (const reservation of activeReservations) {
+            await ClassSession.findByIdAndUpdate(
+                reservation.sessionId._id,
+                { $inc: { reservedCount: -1 } }
+            );
+        }
+
+        // Delete all user data in sequence
+        // 1. Delete all reservations
+        const deletedReservations = await Reservation.deleteMany({ userId: userId });
+
+        // 2. Delete all purchases
+        const deletedPurchases = await Purchase.deleteMany({ userId: userId });
+
+        // 3. Finally delete the user
+        await User.findByIdAndDelete(userId);
+
+        res.json({
+            status: 'success',
+            message: 'User and all associated data deleted successfully',
+            data: {
+                deletedUser: user.name,
+                deletedReservations: deletedReservations.deletedCount,
+                deletedPurchases: deletedPurchases.deletedCount,
+                updatedSessions: activeReservations.length
+            }
+        });
+
+    } catch (err) {
+        console.error('Error deleting user:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET AVAILABLE SESSIONS FOR A SPECIFIC DATE (for changing reservations)
+router.get('/available-sessions', async (req, res) => {
+    try {
+        const { date } = req.query;
+
+        if (!date) {
+            return res.status(400).json({ error: 'Date parameter is required' });
+        }
+
+        // Parse the date and get the start and end of that day
+        const selectedDate = new Date(date);
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Find all sessions for that date
+        const sessions = await ClassSession.find({
+            startsAt: {
+                $gte: startOfDay,
+                $lte: endOfDay
+            }
+        })
+        .populate('classTypeId', 'name description level')
+        .populate('instructorId', 'name bio')
+        .sort({ startsAt: 1 });
+
+        res.json({
+            status: 'success',
+            data: {
+                sessions
+            }
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// CHANGE RESERVATION TO A DIFFERENT SESSION
+router.put('/reservations/:id/change', async (req, res) => {
+    try {
+        const reservationId = req.params.id;
+        const { newSessionId } = req.body;
+
+        if (!newSessionId) {
+            return res.status(400).json({ error: 'New session ID is required' });
+        }
+
+        // Find the current reservation
+        const currentReservation = await Reservation.findById(reservationId)
+            .populate('sessionId')
+            .populate('purchaseId');
+
+        if (!currentReservation) {
+            return res.status(404).json({ error: 'Reservation not found' });
+        }
+
+        // Find the new session
+        const newSession = await ClassSession.findById(newSessionId);
+        if (!newSession) {
+            return res.status(404).json({ error: 'New session not found' });
+        }
+
+        // Check if new session has capacity
+        if (newSession.reservedCount >= newSession.capacity) {
+            return res.status(400).json({ error: 'New session is already full' });
+        }
+
+        // Check if new session hasn't started
+        if (new Date(newSession.startsAt) <= new Date()) {
+            return res.status(400).json({ error: 'Cannot change to a session that has already started' });
+        }
+
+        // Check if current session hasn't started
+        if (new Date(currentReservation.sessionId.startsAt) <= new Date()) {
+            return res.status(400).json({ error: 'Cannot change a reservation for a session that has already started' });
+        }
+
+        // Check if user already has a reservation for the new session
+        const existingReservation = await Reservation.findOne({
+            userId: currentReservation.userId,
+            sessionId: newSessionId
+        });
+
+        if (existingReservation) {
+            return res.status(400).json({ error: 'User already has a reservation for this session' });
+        }
+
+        // Update session counts
+        // Decrease count for old session
+        await ClassSession.findByIdAndUpdate(
+            currentReservation.sessionId._id,
+            { $inc: { reservedCount: -1 } }
+        );
+
+        // Increase count for new session
+        await ClassSession.findByIdAndUpdate(
+            newSessionId,
+            { $inc: { reservedCount: 1 } }
+        );
+
+        // Update the reservation
+        await Reservation.findByIdAndUpdate(
+            reservationId,
+            {
+                sessionId: newSessionId,
+                reservedAt: new Date() // Update reservation time
+            }
+        );
+
+        // Get updated reservation for response
+        const updatedReservation = await Reservation.findById(reservationId)
+            .populate('sessionId')
+            .populate('userId', 'name email');
+
+        res.json({
+            status: 'success',
+            message: 'Reservation changed successfully',
+            data: {
+                reservation: updatedReservation,
+                oldSession: currentReservation.sessionId,
+                newSession: newSession
+            }
+        });
+
+    } catch (err) {
+        console.error('Error changing reservation:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
