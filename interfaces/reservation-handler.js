@@ -642,14 +642,16 @@ async function handleReservation() {
                 }
             }
         } else {
-            // Check if user is new (no packages ever purchased)
+            // Check if user is new (no packages ever purchased) and show recommendation
+            let confirmMessage = `Esta clase tiene un costo de $250 MXN. ¿Deseas continuar con el pago?`;
+
             if (userActivePackages.length === 0 && totalUserCredits === 0) {
                 showAlert('¡Bienvenido! Si eres nueva/o te recomendamos comprar primero la "Clase de Prueba" desde Paquetes antes de reservar una clase individual.', 'warning');
-                return;
+                confirmMessage = `Recomendamos la "Clase de Prueba" primero, pero puedes continuar si deseas.\n\nEsta clase tiene un costo de $250 MXN. ¿Deseas continuar con el pago?`;
             }
 
             // Single class payment flow - no credits available
-            const confirmPayment = confirm(`Esta clase tiene un costo de $250 MXN. ¿Deseas continuar con el pago?`);
+            const confirmPayment = confirm(confirmMessage);
             if (confirmPayment) {
                 await processSingleClassPayment(selectedSession._id, userId);
             }
