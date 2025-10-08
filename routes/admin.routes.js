@@ -9,7 +9,7 @@ const ClassSession = require('../schemas/classSessions.model');
 const Package = require('../schemas/packages.model');
 
 // ADMIN WHITELIST
-const ADMIN_EMAILS = ['wavesfw@gmail.com', 'violettquezada15@gmail.com']; 
+const ADMIN_EMAILS = ['wavesfw@gmail.com', 'violettquezada15@gmail.com', 'adminv_rebettx1@gmail.com']; 
 
 // Custom admin verification middleware
 async function verifyAdmin(req, res, next) {
