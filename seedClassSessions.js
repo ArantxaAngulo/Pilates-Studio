@@ -1,14 +1,14 @@
 /**
  * CLASS SESSIONS SEEDER SCRIPT
- * 
+ *
  * This script creates class sessions for the current and next month.
  * Since the database changes monthly and there are NO concurrent classes,
  * each time slot only has one class.
- * 
+ *
  * Updated Schedule:
  * - Monday to Friday: 6am-10am AND 4pm-8pm (1 hour intervals)
- * - Saturday: 8am-10am only (1 hour intervals)
- * 
+ * - Saturday: 8am-11am (1 hour intervals)
+ *
  * To run: node seedClassSessions.js
  */
 
@@ -69,10 +69,11 @@ async function generateSessionsForMonth(startDate, classTypes, instructors) {
         { hour: 19, minute: 0 }, // 7:00 PM
     ];
     
-    // Saturday morning slots (8am-10am only)
+    // Saturday morning slots (8am-11am)
     const saturdaySlots = [
         { hour: 8, minute: 0 },  // 8:00 AM
         { hour: 9, minute: 0 },  // 9:00 AM
+        { hour: 10, minute: 0 }, // 10:00 AM
     ];
     
     // Days of operation (Monday = 1, Saturday = 6)
@@ -86,7 +87,7 @@ async function generateSessionsForMonth(startDate, classTypes, instructors) {
             let dailySlots = [];
             
             if (dayOfWeek === 6) {
-                // Saturday: 8am-10am only (NO afternoon slots)
+                // Saturday: 8am-11am only (NO afternoon slots)
                 dailySlots = saturdaySlots;
             } else if (dayOfWeek === 0) {
                 // Sunday: No classes
@@ -172,7 +173,7 @@ async function seedClassSessions() {
             // Display schedule summary
             console.log(`\n${colors.magenta}📊 Schedule Summary:${colors.reset}`);
             console.log(`- Monday to Friday: 6:00 AM - 10:00 AM & 4:00 PM - 8:00 PM`);
-            console.log(`- Saturday: 8:00 AM - 10:00 AM`);
+            console.log(`- Saturday: 8:00 AM - 11:00 AM`);
             console.log(`- Total sessions created: ${allSessions.length}`);
         }
         
