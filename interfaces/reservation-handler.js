@@ -339,9 +339,9 @@ async function loadTimeSlots(date) {
         const sessionTime = new Date(session.startsAt);
         const hour = sessionTime.getHours();
         
-        // For Saturday, only add morning sessions (8am-10am)
+        // For Saturday, only add morning sessions (8am-11am)
         if (dayOfWeek === 6) {
-            if (hour >= 8 && hour < 10) {
+            if (hour >= 8 && hour < 11) {
                 amSessions.push(session);
             }
         } else {
