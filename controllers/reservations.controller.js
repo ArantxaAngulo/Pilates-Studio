@@ -658,27 +658,34 @@ exports.getSessionReservations = async (req, res) => {
 exports.checkReservationEligibility = async (req, res) => {
     try {
         const { sessionId } = req.params;
-        
+
         const classSession = await ClassSession.findById(sessionId);
-        
+
         if (!classSession) {
             return res.status(404).json({ error: 'Class session not found' });
         }
-        
+
         const now = new Date();
         const classStart = new Date(classSession.startsAt);
         const hoursUntilClass = (classStart - now) / (1000 * 60 * 60);
-        
+
+        // Get dynamic booking hours (4 for afternoon, 8 for others)
+        const requiredBookingHours = getMinimumBookingHours(classSession.startsAt);
+
+        // Cancellation and refunds ALWAYS use 8-hour rule
+        const cancellationHours = 8;
+
         res.json({
-            canBook: hoursUntilClass >= 8 && classStart > now,
-            canCancel: hoursUntilClass >= 8 && classStart > now,
-            willGetRefund: hoursUntilClass >= 8,
+            canBook: hoursUntilClass >= requiredBookingHours && classStart > now,
+            canCancel: hoursUntilClass >= cancellationHours && classStart > now,
+            willGetRefund: hoursUntilClass >= cancellationHours,
             hoursUntilClass: Math.round(hoursUntilClass * 10) / 10,
-            message: hoursUntilClass < 8 
-                ? 'Las reservas y cancelaciones deben hacerse con al menos 8 horas de anticipación'
-                : 'Puedes reservar o cancelar esta clase'
+            requiredBookingHours,
+            message: hoursUntilClass < requiredBookingHours
+                ? `Las reservas deben hacerse con al menos ${requiredBookingHours} horas de anticipación`
+                : 'Puedes reservar esta clase'
         });
-        
+
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
