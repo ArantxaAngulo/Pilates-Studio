@@ -589,9 +589,10 @@ async function handleReservation() {
         return;
     }
     
-    // Check 8-hour rule
-    if (isWithin8Hours(selectedSession.startsAt)) {
-        showAlert('No se pueden hacer reservas con menos de 8 horas de anticipación', 'error');
+    // Check booking deadline (4 hours for afternoon classes, 8 hours for others)
+    if (isWithinBookingDeadline(selectedSession.startsAt)) {
+        const requiredHours = getMinimumBookingHours(selectedSession.startsAt);
+        showAlert(`No se pueden hacer reservas con menos de ${requiredHours} horas de anticipación`, 'error');
         return;
     }
     
@@ -753,20 +754,21 @@ function getTimeUntilClass(classStartTime) {
 // Visual indicator for classes within 8-hour window
 function updateClassAvailabilityIndicators() {
     const classElements = document.querySelectorAll('.class-session');
-    
+
     classElements.forEach(element => {
         const startTime = element.dataset.startTime;
         if (startTime) {
-            const within8Hours = isWithin8Hours(startTime);
-            
-            if (within8Hours) {
+            const withinDeadline = isWithinBookingDeadline(startTime);
+
+            if (withinDeadline) {
+                const requiredHours = getMinimumBookingHours(startTime);
                 element.classList.add('no-booking-allowed');
-                
+
                 // Add warning badge
                 const warningBadge = document.createElement('span');
                 warningBadge.className = 'warning-badge';
-                warningBadge.textContent = 'No modificable';
-                warningBadge.title = 'No se pueden hacer reservas o cancelaciones con menos de 8 horas de anticipación';
+                warningBadge.textContent = 'No disponible';
+                warningBadge.title = `No se pueden hacer reservas con menos de ${requiredHours} horas de anticipación`;
                 element.appendChild(warningBadge);
             }
         }
@@ -842,11 +844,36 @@ style.textContent = `
 document.head.appendChild(style);
 
 // Check if action is within 8 hours of class
+// NOTE: This is used ONLY for cancellation policy validation
 function isWithin8Hours(classStartTime) {
     const now = new Date();
     const classStart = new Date(classStartTime);
     const hoursUntilClass = (classStart - now) / (1000 * 60 * 60);
     return hoursUntilClass < 8;
+}
+
+// Helper function to determine minimum booking hours based on class time
+// Afternoon classes (4pm-8pm) require 4 hours, all others require 8 hours
+function getMinimumBookingHours(classStartTime) {
+    const classStart = new Date(classStartTime);
+    const classHour = classStart.getHours();
+
+    // Afternoon classes (4pm-8pm) need 4 hours, others need 8
+    if (classHour >= 16 && classHour < 20) {
+        return 4;
+    }
+    return 8;
+}
+
+// Helper function to check if booking is within the deadline
+// Uses dynamic hours based on class time (afternoon vs morning/Saturday)
+function isWithinBookingDeadline(classStartTime) {
+    const now = new Date();
+    const classStart = new Date(classStartTime);
+    const hoursUntilClass = (classStart - now) / (1000 * 60 * 60);
+    const requiredHours = getMinimumBookingHours(classStartTime);
+
+    return hoursUntilClass < requiredHours;
 }
 
 async function processSingleClassPayment(sessionId, userId) {

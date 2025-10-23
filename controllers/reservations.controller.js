@@ -3,6 +3,7 @@ const Reservation = require('../schemas/reservations.model');
 const ClassSession = require('../schemas/classSessions.model');
 const Purchase = require('../schemas/purchases.model');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
+const businessRules = require('../config/businessRules.config');
 
 // Initialize MercadoPago client for refunds
 const client = new MercadoPagoConfig({ 
@@ -11,11 +12,39 @@ const client = new MercadoPagoConfig({
 const paymentClient = new Payment(client);
 
 // Helper function to check if action is within 8 hours of class
+// NOTE: This is used ONLY for cancellation policy validation
 function isWithin8Hours(classStartTime) {
     const now = new Date();
     const classStart = new Date(classStartTime);
     const hoursUntilClass = (classStart - now) / (1000 * 60 * 60); // Convert milliseconds to hours
     return hoursUntilClass < 8;
+}
+
+// Helper function to determine minimum booking hours based on class time
+// Afternoon classes (4pm-8pm) require 4 hours, all others require 8 hours
+function getMinimumBookingHours(classStartTime) {
+    const classStart = new Date(classStartTime);
+    const classHour = classStart.getHours();
+
+    const { afternoonClassStartHour, afternoonClassEndHour, afternoonClassMinHours, minHoursBeforeClass } = businessRules.reservation;
+
+    // Check if it's an afternoon class (4pm-8pm)
+    if (classHour >= afternoonClassStartHour && classHour < afternoonClassEndHour) {
+        return afternoonClassMinHours; // 4 hours for afternoon classes
+    }
+
+    return minHoursBeforeClass; // 8 hours for all other classes
+}
+
+// Helper function to check if booking is within the deadline
+// Uses dynamic hours based on class time (afternoon vs morning/Saturday)
+function isWithinBookingDeadline(classStartTime) {
+    const now = new Date();
+    const classStart = new Date(classStartTime);
+    const hoursUntilClass = (classStart - now) / (1000 * 60 * 60);
+    const requiredHours = getMinimumBookingHours(classStartTime);
+
+    return hoursUntilClass < requiredHours;
 }
 
 // Helper function to process MercadoPago refund
@@ -154,12 +183,14 @@ exports.createReservation = async (req, res) => {
             return res.status(404).json({ error: 'Class session not found' });
         }
 
-        // Check 8-hour rule for reservations
-        if (isWithin8Hours(classSession.startsAt)) {
+        // Check booking deadline (4 hours for afternoon classes, 8 hours for others)
+        if (isWithinBookingDeadline(classSession.startsAt)) {
+            const requiredHours = getMinimumBookingHours(classSession.startsAt);
             await session.abortTransaction();
-            return res.status(400).json({ 
-                error: 'No se pueden hacer reservas con menos de 8 horas de anticipación',
-                errorCode: 'WITHIN_8_HOURS'
+            return res.status(400).json({
+                error: `No se pueden hacer reservas con menos de ${requiredHours} horas de anticipación`,
+                errorCode: 'WITHIN_BOOKING_DEADLINE',
+                requiredHours
             });
         }
 

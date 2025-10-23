@@ -32,11 +32,16 @@ module.exports = {
   reservation: {
     // How far in advance users can book (in days)
     maxAdvanceBookingDays: 30,
-    
-    // Minimum hours before class to book
+
+    // Minimum hours before class to book (default for morning/Saturday classes)
     minHoursBeforeClass: 8,
-    
-    // Cancellation policy (hours before class)
+
+    // Afternoon class booking window (4pm-8pm classes get shorter window)
+    afternoonClassMinHours: 4,
+    afternoonClassStartHour: 16, // 4pm in 24-hour format
+    afternoonClassEndHour: 20,   // 8pm in 24-hour format (exclusive)
+
+    // Cancellation policy (hours before class) - applies to ALL classes
     cancellationDeadlineHours: 8,
     
     // Whether to refund credits on cancellation
