@@ -551,8 +551,10 @@ router.put('/reservations/:id/change', async (req, res) => {
             reservationId,
             {
                 sessionId: newSessionId,
-                reservedAt: new Date() // Update reservation time
-            }
+                reservedAt: new Date(), // Update reservation time
+                updatedAt: new Date() // Explicitly set updatedAt
+            },
+            { new: true } // Return the updated document
         );
 
         // Get updated reservation for response
