@@ -453,12 +453,12 @@ router.get('/available-sessions', async (req, res) => {
             return res.status(400).json({ error: 'Date parameter is required' });
         }
 
-        // Parse the date and get the start and end of that day
-        const selectedDate = new Date(date);
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Parse the date in local timezone (Mexico City)
+        // Input format: "YYYY-MM-DD" from date picker
+        // Since process.env.TZ is set to 'America/Mexico_City', new Date() respects that
+        const [year, month, day] = date.split('-').map(Number);
+        const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0);
+        const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
 
         // Find all sessions for that date
         const sessions = await ClassSession.find({
