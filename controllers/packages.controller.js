@@ -43,15 +43,14 @@ exports.getAllPackages = async (req, res) => {
 // GET PACKAGE BY ID
 exports.getPackageById = async (req, res) => {
     try {
-        const package = await Package.findById(req.params.id);
+        const foundPackage = await Package.findById(req.params.id);
         
-        if (!package) {
-            return res.status(404).json({ error: 'Package not found' });
+        if (!foundPackage) {            return res.status(404).json({ error: 'Package not found' });
         }
         
         res.json({
             status: 'success',
-            data: { package }
+            data: { package: foundPackage }
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -98,7 +97,7 @@ exports.createPackage = async (req, res) => {
             });
         }
 
-        const package = await Package.create({
+        const foundPackage = await Package.create({
             _id,
             name,
             creditCount,
@@ -108,7 +107,7 @@ exports.createPackage = async (req, res) => {
 
         res.status(201).json({
             status: 'success',
-            data: { package }
+            data: { package: foundPackage }
         });
     } catch (err) {
         if (err.name === 'ValidationError') {
@@ -148,19 +147,19 @@ exports.updatePackage = async (req, res) => {
             return res.status(400).json({ error: 'Price must be greater than 0' });
         }
 
-        const package = await Package.findByIdAndUpdate(
+        const foundPackage = await Package.findByIdAndUpdate(
             req.params.id, 
             req.body, 
             { new: true, runValidators: true }
         );
 
-        if (!package) {
+        if (!foundPackage) {
             return res.status(404).json({ error: 'Package not found' });
         }
 
         res.json({
             status: 'success',
-            data: { package }
+            data: { package: foundPackage }
         });
     } catch (err) {
         if (err.name === 'ValidationError') {
@@ -192,9 +191,9 @@ exports.deletePackage = async (req, res) => {
             });
         }
 
-        const package = await Package.findByIdAndDelete(req.params.id);
+        const foundPackage = await Package.findByIdAndDelete(req.params.id);
 
-        if (!package) {
+        if (!foundPackage) {
             return res.status(404).json({ error: 'Package not found' });
         }
 
@@ -212,8 +211,8 @@ exports.getPackageStats = async (req, res) => {
     try {
         const packageId = req.params.id;
         
-        const package = await Package.findById(packageId);
-        if (!package) {
+        const foundPackage = await Package.findById(packageId);
+        if (!foundPackage) {
             return res.status(404).json({ error: 'Package not found' });
         }
 
@@ -238,12 +237,12 @@ exports.getPackageStats = async (req, res) => {
         });
 
         // Calculate revenue
-        const totalRevenue = totalPurchases * package.price;
+        const totalRevenue = totalPurchases * foundPackage.price;
 
         res.json({
             status: 'success',
             data: {
-                package,
+                package: foundPackage,
                 statistics: {
                     totalPurchases,
                     activePurchases,

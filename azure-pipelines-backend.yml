@@ -1,0 +1,153 @@
+# azure-pipelines-backend.yml
+
+trigger:
+  branches:
+    include:
+      - main
+      - release/* # Trigger for release branches
+  paths:
+    include:
+      - 'controllers/*'
+      - 'config/*'
+      - 'helpers/*'
+      - 'middleware/*'
+      - 'models/*'
+      - 'routes/*'
+      - 'schemas/*'
+      - 'server.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Dockerfile'
+      - '__tests__/*' # Include tests in the backend trigger
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - name: nodeVersion
+    value: '18.x' # Using a recent LTS version of Node.js
+  - name: projectRoot
+    value: '$(System.DefaultWorkingDirectory)'
+
+stages:
+  - stage: Build
+    displayName: 'Build & Package'
+    jobs:
+      - job: Build
+        displayName: 'Build Node.js App'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Use Node.js $(nodeVersion)'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            displayName: 'Install dependencies with npm ci'
+
+          # This step is crucial for preparing the frontend, as discovered from the Dockerfile
+          - script: |
+              mkdir -p public
+              cp -r interfaces/* public/
+            displayName: 'Prepare frontend assets'
+
+          - task: ArchiveFiles@2
+            displayName: 'Archive files for pipeline artifact'
+            inputs:
+              rootFolderOrFile: '$(projectRoot)'
+              includeRootFolder: false
+              archiveType: 'zip'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/backend-app.zip'
+              replaceExistingArchive: true
+
+          - publish: '$(Build.ArtifactStagingDirectory)/backend-app.zip'
+            artifact: 'backend-app'
+
+  - stage: Test
+    displayName: 'Test & Code Coverage'
+    dependsOn: Build
+    jobs:
+      - job: Test
+        displayName: 'Run Jest Tests'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Use Node.js $(nodeVersion)'
+            inputs:
+              versionSpec: $(nodeVersion)
+          
+          - task: ExtractFiles@1
+            displayName: 'Extract app artifact'
+            inputs:
+              archiveFilePatterns: '$(Pipeline.Workspace)/backend-app/backend-app.zip'
+              destinationFolder: '$(System.DefaultWorkingDirectory)/'
+              cleanDestinationFolder: true
+
+          # npm ci is needed again here because devDependencies (like jest) are required to run tests
+          - script: npm ci 
+            displayName: 'Install dependencies for testing'
+          
+          # Assumes 'npm test' is configured in package.json to run Jest with coverage
+          # Example package.json script: "test": "jest --ci --reporters=default --reporters=jest-junit --coverage"
+          - script: npm test
+            displayName: 'Run tests and generate coverage'
+            continueOnError: true # Continue even if tests fail, to publish results
+
+          - task: PublishTestResults@2
+            displayName: 'Publish UAT & Unit Test Results'
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/junit.xml' # Assumes jest-junit reporter is used
+              searchFolder: '$(System.DefaultWorkingDirectory)'
+              mergeTestResults: true
+              failTaskOnFailedTests: true
+              testRunTitle: 'Backend Tests'
+
+          - task: PublishCodeCoverageResults@1
+            displayName: 'Publish Code Coverage'
+            inputs:
+              codeCoverageTool: 'Cobertura'
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml' # Default location for Jest cobertura reports
+
+  - stage: Deploy_Dev
+    displayName: 'Deploy to Development'
+    dependsOn: Test
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployWebApp_Dev
+        displayName: 'Deploy to Dev App Service'
+        environment: 'dev' # Maps to your Azure DevOps Environment named 'dev'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: 'backend-app'
+                - task: AzureWebApp@1
+                  displayName: 'Deploy to Azure Web App (Dev)'
+                  inputs:
+                    azureSubscription: '<Your Azure Service Connection>' # TODO: Update with your service connection
+                    appName: '<Your Dev Web App Name>' # TODO: Update with your app service name
+                    package: '$(Pipeline.Workspace)/backend-app/backend-app.zip'
+                    # Add deployment options if needed, e.g., app settings
+                    # appSettings: '-WEBSITE_NODE_DEFAULT_VERSION 18.x -NODE_ENV development'
+
+  - stage: Deploy_Prod
+    displayName: 'Deploy to Production'
+    dependsOn: Test
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'))
+    jobs:
+      - deployment: DeployWebApp_Prod
+        displayName: 'Deploy to Prod App Service'
+        environment: 'prod' # Maps to your Azure DevOps Environment named 'prod'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: 'backend-app'
+                - task: AzureWebApp@1
+                  displayName: 'Deploy to Azure Web App (Prod)'
+                  inputs:
+                    azureSubscription: '<Your Azure Service Connection>' # TODO: Update with your service connection
+                    appName: '<Your Prod Web App Name>' # TODO: Update with your app service name
+                    package: '$(Pipeline.workspace)/backend-app/backend-app.zip'
+                    # appSettings: '-WEBSITE_NODE_DEFAULT_VERSION 18.x -NODE_ENV production'

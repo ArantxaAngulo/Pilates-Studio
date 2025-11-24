@@ -1,0 +1,88 @@
+# azure-pipelines-frontend.yml
+
+trigger:
+  branches:
+    include:
+      - main
+      - release/*
+  paths:
+    include:
+      - 'interfaces/*'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: 'Build Frontend Artifact'
+  jobs:
+  - job: Build
+    displayName: 'Archive Frontend Files'
+    steps:
+    - task: ArchiveFiles@2
+      displayName: 'Archive /interfaces directory'
+      inputs:
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)/interfaces'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/frontend-assets.zip'
+        replaceExistingArchive: true
+
+    - publish: '$(Build.ArtifactStagingDirectory)/frontend-assets.zip'
+      artifact: 'frontend-assets'
+
+# This pipeline assumes you are deploying the frontend to a static hosting service.
+# If your Express.js backend serves the frontend (as it currently does), this pipeline's
+# primary role is to validate and publish the frontend assets. The backend pipeline then
+# consumes this artifact. However, since you requested two pipelines, I've created separate
+# deployment stages below as a template for deploying to a service like Azure Static Web Apps.
+
+- stage: Deploy_Dev
+  displayName: 'Deploy Frontend to Dev'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: Deploy_Static_Content_Dev
+    displayName: 'Deploy to Dev Environment'
+    environment: 'dev-frontend' # Create an env in Azure DevOps for this
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: 'frontend-assets'
+
+          - task: AzureStaticWebApp@0 # Example for Azure Static Web Apps
+            displayName: 'Deploy to Static Web App (Dev)'
+            inputs:
+              azure_static_web_apps_api_token: $(deployment_token_dev) # Use a secret variable
+              # Add other necessary parameters for your deployment target
+              # For example, for blob storage:
+              # - task: AzureFileCopy@4
+              #   inputs:
+              #     SourcePath: '$(Pipeline.Workspace)/frontend-assets/frontend-assets.zip'
+              #     azureSubscription: '<Your Azure Service Connection>'
+              #     Destination: 'AzureBlob'
+              #     storage: '<Your Storage Account Name>'
+              #     containerName: '$web' # Static website container
+
+- stage: Deploy_Prod
+  displayName: 'Deploy Frontend to Prod'
+  dependsOn: Build
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'))
+  jobs:
+  - deployment: Deploy_Static_Content_Prod
+    displayName: 'Deploy to Prod Environment'
+    environment: 'prod-frontend'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: 'frontend-assets'
+
+          - task: AzureStaticWebApp@0 # Example for Azure Static Web Apps
+            displayName: 'Deploy to Static Web App (Prod)'
+            inputs:
+              azure_static_web_apps_api_token: $(deployment_token_prod) # Use a secret variable
+              # Add other necessary parameters for your deployment target

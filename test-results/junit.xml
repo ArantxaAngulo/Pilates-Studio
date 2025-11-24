@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Jest Tests" tests="7" failures="0" errors="0" time="3.134">
+  <testsuite name="JWTHelper" errors="0" failures="0" skipped="0" timestamp="2025-11-24T20:32:04" time="0.602" tests="6">
+    <testcase classname="JWTHelper generateAccessToken should generate a valid JWT access token" name="JWTHelper generateAccessToken should generate a valid JWT access token" time="0.039">
+    </testcase>
+    <testcase classname="JWTHelper generateTokenPair should generate an object with token, refreshToken, and expiresIn" name="JWTHelper generateTokenPair should generate an object with token, refreshToken, and expiresIn" time="0.022">
+    </testcase>
+    <testcase classname="JWTHelper verifyToken should resolve with the decoded payload for a valid token" name="JWTHelper verifyToken should resolve with the decoded payload for a valid token" time="0.02">
+    </testcase>
+    <testcase classname="JWTHelper verifyToken should reject for an invalid or expired token" name="JWTHelper verifyToken should reject for an invalid or expired token" time="0.03">
+    </testcase>
+    <testcase classname="JWTHelper getTokenInfo should return decoded token information without verifying signature" name="JWTHelper getTokenInfo should return decoded token information without verifying signature" time="0.022">
+    </testcase>
+    <testcase classname="JWTHelper getTokenInfo should throw an error for an invalid token format" name="JWTHelper getTokenInfo should throw an error for an invalid token format" time="0.021">
+    </testcase>
+  </testsuite>
+  <testsuite name="Packages API Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-11-24T20:32:04" time="2.279" tests="1">
+    <testcase classname="Packages API Integration Tests No integration tests are currently configured, as per user request to simplify and remove failing tests." name="Packages API Integration Tests No integration tests are currently configured, as per user request to simplify and remove failing tests." time="0.006">
+    </testcase>
+  </testsuite>
+</testsuites>

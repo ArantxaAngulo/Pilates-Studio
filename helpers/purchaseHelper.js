@@ -103,9 +103,9 @@ async function createPurchaseWithValidation(purchaseData, options = {}) {
 
     // Get package details
     const Package = require('../schemas/packages.model');
-    const package = await Package.findById(packageId);
+    const foundPackage = await Package.findById(packageId);
     
-    if (!package) {
+    if (!foundPackage) {
       return {
         success: false,
         purchase: null,
@@ -116,7 +116,7 @@ async function createPurchaseWithValidation(purchaseData, options = {}) {
     // Calculate dates
     const boughtAt = new Date();
     const expiresAt = new Date(boughtAt);
-    expiresAt.setDate(expiresAt.getDate() + package.validDays);
+    expiresAt.setDate(expiresAt.getDate() + foundPackage.validDays);
 
     // Create purchase
     const purchase = await Purchase.create({
@@ -124,7 +124,7 @@ async function createPurchaseWithValidation(purchaseData, options = {}) {
       packageId,
       boughtAt,
       expiresAt,
-      creditsLeft: package.creditCount,
+      creditsLeft: foundPackage.creditCount,
       mercadoPagoPaymentId: paymentId || null
     });
 

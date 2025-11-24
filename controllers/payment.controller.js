@@ -248,8 +248,8 @@ exports.handleSuccess = async (req, res) => {
             }
 
             // Get package details
-            const package = await Package.findById(metadata.packageId).session(session);
-            if (!package) {
+            const foundPackage = await Package.findById(metadata.packageId).session(session);
+            if (!foundPackage) {
               console.error('Package not found:', metadata.packageId);
               await session.abortTransaction();
               return res.redirect(`${FRONTEND_URL}/interfaces/error.html?reason=package_not_found`);
@@ -261,8 +261,8 @@ exports.handleSuccess = async (req, res) => {
               userId: metadata.userId,
               packageId: metadata.packageId,
               boughtAt: new Date(),
-              expiresAt: new Date(Date.now() + package.validDays * 24 * 60 * 60 * 1000),
-              creditsLeft: package.creditCount,
+              expiresAt: new Date(Date.now() + foundPackage.validDays * 24 * 60 * 60 * 1000),
+              creditsLeft: foundPackage.creditCount,
               mercadoPagoPaymentId: payment_id
             });
 
@@ -625,8 +625,8 @@ exports.webhook = async (req, res) => {
           return res.status(200).send("OK (Duplicate)");
         }
 
-        const package = await Package.findById(metadata.packageId).session(session);
-        if (!package) {
+        const foundPackage = await Package.findById(metadata.packageId).session(session);
+        if (!foundPackage) {
           console.error(`🔴 Package not found: ${metadata.packageId}`);
           await session.commitTransaction();
           return res.status(200).send("OK (Package not found)");

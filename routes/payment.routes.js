@@ -46,8 +46,8 @@ router.post('/test-purchase', async (req, res) => {
         const Purchase = require('../schemas/purchases.model');
         const Package = require('../schemas/packages.model');
         
-        const package = await Package.findById(packageId);
-        if (!package) {
+        const foundPackage = await Package.findById(packageId);
+        if (!foundPackage) {
             return res.status(404).json({ error: 'Package not found' });
         }
         
@@ -55,8 +55,8 @@ router.post('/test-purchase', async (req, res) => {
             userId,
             packageId,
             boughtAt: new Date(),
-            expiresAt: new Date(Date.now() + package.validDays * 86400000),
-            creditsLeft: package.creditCount,
+            expiresAt: new Date(Date.now() + foundPackage.validDays * 86400000),
+            creditsLeft: foundPackage.creditCount,
             mercadoPagoPaymentId: 'TEST_' + Date.now()
         });
         
